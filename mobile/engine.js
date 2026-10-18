@@ -148,6 +148,197 @@
     return d.toISOString().slice(0, 10);
   }
 
-  root.Engine = { decode: decode, devig: devig, wilson: wilson, scopeIdx: scopeIdx, rankSimilar: rankSimilar, summarize: summarize, analyze: analyze, dayToDate: dayToDate, MISS: MISS };
+
+  /* ================= Piyasa -> Poisson (backend/app/models/market_poisson.py ile aynı) ================= */
+  var MAXG = 10, HT_SHARE = 0.444, RHO = -0.05;
+  function pmfRow(l) { var r = [Math.exp(-l)]; for (var k = 1; k <= MAXG; k++) r.push(r[k - 1] * l / k); return r; }
+  function scoreMatrix(lh, la, rho) {
+    var a = pmfRow(lh), b = pmfRow(la), m = [], t = 0, i, j;
+    for (i = 0; i <= MAXG; i++) { m.push([]); for (j = 0; j <= MAXG; j++) m[i].push(a[i] * b[j]); }
+    if (rho) {
+      m[0][0] *= Math.max(0, 1 - lh * la * rho); m[0][1] *= 1 + lh * rho; m[1][0] *= 1 + la * rho; m[1][1] *= Math.max(0, 1 - rho);
+    }
+    for (i = 0; i <= MAXG; i++) for (j = 0; j <= MAXG; j++) t += m[i][j];
+    for (i = 0; i <= MAXG; i++) for (j = 0; j <= MAXG; j++) m[i][j] /= t;
+    return m;
+  }
+  function marketProbs(m) {
+    var o = { "1": 0, X: 0, "2": 0, btts_yes: 0, hcs: 0, acs: 0 }, over = { 0.5: 0, 1.5: 0, 2.5: 0, 3.5: 0, 4.5: 0 };
+    for (var i = 0; i <= MAXG; i++) for (var j = 0; j <= MAXG; j++) {
+      var p = m[i][j];
+      if (i > j) o["1"] += p; else if (i === j) o.X += p; else o["2"] += p;
+      if (i > 0 && j > 0) o.btts_yes += p;
+      if (j === 0) o.hcs += p; if (i === 0) o.acs += p;
+      Object.keys(over).forEach(function (x) { if (i + j > +x) over[x] += p; });
+    }
+    o["1X"] = o["1"] + o.X; o["12"] = o["1"] + o["2"]; o.X2 = o.X + o["2"];
+    Object.keys(over).forEach(function (x) { o["over_" + String(x).replace(".", "_")] = over[x]; });
+    return o;
+  }
+  function topScores(m, k) {
+    var all = [];
+    for (var i = 0; i <= MAXG; i++) for (var j = 0; j <= MAXG; j++) all.push({ score: i + "-" + j, p: m[i][j] });
+    return all.sort(function (a, b) { return b.p - a.p; }).slice(0, k || 8);
+  }
+  function nelderMead(f, x0, iters) {
+    var n = x0.length, S = [x0.slice()], i, j;
+    for (i = 0; i < n; i++) { var v = x0.slice(); v[i] += 0.25; S.push(v); }
+    var F = S.map(f);
+    for (var it = 0; it < (iters || 400); it++) {
+      var ord = F.map(function (_, k) { return k; }).sort(function (a, b) { return F[a] - F[b]; });
+      S = ord.map(function (k) { return S[k]; }); F = ord.map(function (k) { return F[k]; });
+      if (Math.abs(F[n] - F[0]) < 1e-14) break;
+      var c = new Array(n).fill(0);
+      for (i = 0; i < n; i++) for (j = 0; j < n; j++) c[j] += S[i][j] / n;
+      var mix = function (t) { return c.map(function (cj, j2) { return cj + t * (S[n][j2] - cj); }); };
+      var xr = mix(-1), fr = f(xr);
+      if (fr < F[0]) { var xe = mix(-2), fe = f(xe); if (fe < fr) { S[n] = xe; F[n] = fe; } else { S[n] = xr; F[n] = fr; } }
+      else if (fr < F[n - 1]) { S[n] = xr; F[n] = fr; }
+      else {
+        var xc = mix(fr < F[n] ? -0.5 : 0.5), fc = f(xc);
+        if (fc < Math.min(fr, F[n])) { S[n] = xc; F[n] = fc; }
+        else for (i = 1; i <= n; i++) { S[i] = S[i].map(function (v2, j2) { return S[0][j2] + 0.5 * (v2 - S[0][j2]); }); F[i] = f(S[i]); }
+      }
+    }
+    var b = 0; for (i = 1; i <= n; i++) if (F[i] < F[b]) b = i;
+    return { x: S[b], f: F[b] };
+  }
+  function fitFromMarket(o1x2, ou, rho) {
+    rho = rho === undefined ? RHO : rho;
+    var p = devig(o1x2), tou = ou ? devig(ou)[0] : null;
+    var loss = function (x) {
+      var mp = marketProbs(scoreMatrix(Math.exp(x[0]), Math.exp(x[1]), rho));
+      var e = Math.pow(mp["1"] - p[0], 2) + Math.pow(mp.X - p[1], 2) + Math.pow(mp["2"] - p[2], 2);
+      if (tou !== null) e += Math.pow(mp.over_2_5 - tou, 2);
+      return e;
+    };
+    var best = null;
+    [[1.4, 1.1], [2.0, 0.8], [0.9, 1.6]].forEach(function (s0) {
+      var r = nelderMead(loss, s0.map(Math.log), 600); if (!best || r.f < best.f) best = r;
+    });
+    return { lh: Math.exp(best.x[0]), la: Math.exp(best.x[1]), rho: rho, rmse: Math.sqrt(best.f / (tou !== null ? 4 : 3)), target: p };
+  }
+  function halfMarkets(lh, la) {
+    var mp = marketProbs(scoreMatrix(lh * HT_SHARE, la * HT_SHARE, 0));
+    return { ht_1: mp["1"], ht_x: mp.X, ht_2: mp["2"], ht_btts: mp.btts_yes, ht_o05: mp.over_0_5, ht_o15: mp.over_1_5, ht_o25: mp.over_2_5 };
+  }
+
+  /* ================= Bülten ayrıştırma (backend/app/providers/manual.py ile aynı kurallar) ================= */
+  function parseBulletin(text) {
+    var matches = [], errors = [];
+    var SEP = /\s+(?:-|–|—|vs\.?|v)\s+/i;
+    var PREFIX = /^\s*(?:\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?\s*)?(?:\d{1,2}:\d{2}\s*)?(?:\d{4,7}\s+)?/;
+    text.split(/\r?\n/).forEach(function (raw0, k) {
+      var raw = raw0.trim(); if (!raw) return;
+      if (!/\d/.test(raw)) return; /* lig başlığı */
+      var line = raw.replace(PREFIX, ""), m = SEP.exec(line);
+      var bad = function (reason) { errors.push({ line: k + 1, text: raw.slice(0, 80), reason: reason }); };
+      if (!m) return bad("Takım ayracı (-) bulunamadı");
+      var home = line.slice(0, m.index).trim(), rest = line.slice(m.index + m[0].length);
+      var NUM = /(?<![\w.,])(\d{1,3}(?:[.,]\d{1,3})?)(?![\w])/g, first = NUM.exec(rest);
+      if (!first) return bad("Oran bulunamadı");
+      var away = rest.slice(0, first.index).replace(/^[ \t;:]+|[ \t;:]+$/g, "");
+      var nums = (rest.slice(first.index).match(/(?<![\w.,])(\d{1,3}(?:[.,]\d{1,3})?)(?![\w])/g) || []).map(function (x) { return parseFloat(x.replace(",", ".")); });
+      if (!home || !away || nums.length < 3) return bad("En az 3 oran (1-X-2) ve iki takım adı gerekli");
+      var o = nums.slice(0, 3), ou = nums.length >= 5 ? nums.slice(3, 5) : null;
+      if (o.some(function (x) { return x <= 1; }) || (ou && ou.some(function (x) { return x <= 1; }))) return bad("Oranlar 1,00'dan büyük olmalı");
+      matches.push({ home: home, away: away, odds: o, ou: ou });
+    });
+    return { matches: matches, errors: errors };
+  }
+
+  /* ================= Takım adı eşleme ================= */
+  var STOP = { fc: 1, cf: 1, afc: 1, sc: 1, ac: 1, as: 1, ssc: 1, fk: 1, sk: 1, bk: 1, fsv: 1, vfb: 1, vfl: 1, tsg: 1, rb: 1, "1": 1, "04": 1, "05": 1, de: 1, the: 1 };
+  function normName(s) {
+    s = s.normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/ı/g, "i").replace(/İ/g, "i").toLowerCase().replace(/[^a-z0-9 ]/g, " ");
+    return s.split(/\s+/).filter(function (t) { return t && !STOP[t]; }).join(" ");
+  }
+  function dice(a, b) {
+    if (a === b) return 1; if (a.length < 2 || b.length < 2) return 0;
+    var g = {}, i, n = 0; for (i = 0; i < a.length - 1; i++) { var k = a.slice(i, i + 2); g[k] = (g[k] || 0) + 1; }
+    for (i = 0; i < b.length - 1; i++) { var k2 = b.slice(i, i + 2); if (g[k2] > 0) { g[k2]--; n++; } }
+    return 2 * n / (a.length + b.length - 2);
+  }
+  function teamIndex(D) {
+    if (D._tn) return D._tn;
+    var T = D.meta.teams.map(function (t, i) { return { i: i, n: normName(t.name) }; }), last = new Int16Array(T.length).fill(-1);
+    for (var i = 0; i < D.n; i++) { last[D.home[i]] = D.div[i]; last[D.away[i]] = D.div[i]; }
+    D._tn = { T: T, last: last }; return D._tn;
+  }
+  function matchTeam(D, name) {
+    var tn = teamIndex(D), n = normName(name), best = -1, br = 0;
+    for (var k = 0; k < tn.T.length; k++) {
+      var t = tn.T[k], r = t.n === n ? 1 : dice(n, t.n);
+      if ((n.length >= 4 && t.n.length >= 4) && (t.n.indexOf(n) > -1 || n.indexOf(t.n) > -1)) r = Math.max(r, 0.9);
+      if (r > br) { br = r; best = k; }
+    }
+    return br >= 0.82 ? best : -1;
+  }
+
+  /* ================= Takım formu ve karşılıklı geçmiş (arşivden) ================= */
+  function teamForm(D, team, n, venue) {
+    var idx = [];
+    for (var i = D.n - 1; i >= 0 && idx.length < n; i--) {
+      if (D.fth[i] === MISS) continue;
+      var h = D.home[i] === team, a = D.away[i] === team;
+      if (!(venue === "home" ? h : venue === "away" ? a : (h || a))) continue;
+      idx.push(i);
+    }
+    if (!idx.length) return { n: 0 };
+    var f = { n: idx.length, gf: 0, ga: 0, pts: 0, w: 0, d: 0, l: 0, cs: 0, fts: 0, btts: 0, o25: 0, form: "", cor: 0, corN: 0, crd: 0, crdN: 0 };
+    idx.forEach(function (i) {
+      var home = D.home[i] === team, gf = home ? D.fth[i] : D.fta[i], ga = home ? D.fta[i] : D.fth[i];
+      f.gf += gf; f.ga += ga; f.pts += gf > ga ? 3 : gf === ga ? 1 : 0; f.w += gf > ga; f.d += gf === ga; f.l += gf < ga;
+      f.cs += ga === 0; f.fts += gf === 0; f.btts += gf > 0 && ga > 0; f.o25 += gf + ga > 2;
+      f.form = (gf > ga ? "G" : gf === ga ? "B" : "M") + f.form;
+      if (D.corners[i] !== MISS) { f.cor += D.corners[i]; f.corN++; }
+      if (D.cards[i] !== MISS) { f.crd += D.cards[i]; f.crdN++; }
+    });
+    var n2 = f.n;
+    return { n: n2, ppg: f.pts / n2, gf: f.gf / n2, ga: f.ga / n2, win: f.w / n2, draw: f.d / n2, loss: f.l / n2, cs: f.cs / n2, fts: f.fts / n2,
+      btts: f.btts / n2, o25: f.o25 / n2, form: f.form, corners: f.corN ? f.cor / f.corN : null, cards: f.crdN ? f.crd / f.crdN : null };
+  }
+  function h2h(D, a, b, n) {
+    var out = [];
+    for (var i = D.n - 1; i >= 0 && out.length < n; i--) {
+      if (D.fth[i] === MISS) continue;
+      if ((D.home[i] === a && D.away[i] === b) || (D.home[i] === b && D.away[i] === a)) out.push(i);
+    }
+    return out;
+  }
+
+  /* ================= Tek maç otomatik analizi ================= */
+  function strengthLambdas(D, h, a) {
+    var S = D.meta.strength; if (!S || h < 0 || a < 0) return null;
+    var tn = teamIndex(D), dv = tn.last[h]; if (dv < 0) return null;
+    var base = S.base[D.meta.divs[dv].code]; if (base === undefined) return null;
+    return { lh: Math.exp(base + S.home + S.att[h] - S.def[a]), la: Math.exp(base + S.att[a] - S.def[h]) };
+  }
+  function analyzeMatch(D, q, hIdx, aIdx) {
+    var fit = fitFromMarket(q.odds, q.ou), mM = scoreMatrix(fit.lh, fit.la, RHO), warn = [];
+    var res = { fit: fit, market: marketProbs(mM), mMatrix: mM, half: halfMarkets(fit.lh, fit.la), warnings: warn, hIdx: hIdx, aIdx: aIdx };
+    if (fit.rmse > 0.03) warn.push("Piyasa oranları tek bir Poisson dağılımına zor uyuyor (uyum hatası yüksek); oranları kontrol edin.");
+    if (!q.ou) warn.push("2,5 üst/alt oranı girilmedi: toplam gol beklentisi yalnızca 1X2'den çıkarıldı, daha belirsiz.");
+    var wM = D.meta.strength ? D.meta.strength.w_market : 1, matrix = mM, sl = strengthLambdas(D, hIdx, aIdx);
+    res.wMarket = wM;
+    if (sl) {
+      var mS = scoreMatrix(sl.lh, sl.la, RHO), sp = marketProbs(mS); res.strength = { lh: sl.lh, la: sl.la, market: sp };
+      matrix = mM.map(function (row, i) { return row.map(function (v, j) { return wM * v + (1 - wM) * mS[i][j]; }); });
+      var keys = ["1", "X", "2", "over_2_5", "btts_yes"], mx = 0;
+      keys.forEach(function (k) { mx = Math.max(mx, Math.abs(res.market[k] - sp[k])); });
+      res.disagree = { max: mx, flag: mx > 0.08 };
+      if (res.disagree.flag) warn.push("Piyasa ve arşiv güç modeli belirgin ayrışıyor (%8 puandan fazla). Sakatlık/rotasyon gibi arşivde olmayan bir bilgi olabilir.");
+    } else if (hIdx < 0 || aIdx < 0) warn.push("Takımlardan biri arşivde bulunamadı: güç modeli, form ve karşılıklı geçmiş yok.");
+    res.matrix = matrix; res.combined = marketProbs(matrix); res.top = topScores(matrix, 8);
+    if (hIdx >= 0 && aIdx >= 0) {
+      res.form = { h: teamForm(D, hIdx, 10, "any"), hh: teamForm(D, hIdx, 10, "home"), a: teamForm(D, aIdx, 10, "any"), aa: teamForm(D, aIdx, 10, "away") };
+      res.h2h = h2h(D, hIdx, aIdx, 10);
+    }
+    var sim = analyze(D, q, { kind: "all" }, { topN: 50 }); res.similar = sim;
+    return res;
+  }
+
+  root.Engine = { decode: decode, devig: devig, wilson: wilson, scopeIdx: scopeIdx, rankSimilar: rankSimilar, summarize: summarize, analyze: analyze, dayToDate: dayToDate, MISS: MISS, fitFromMarket: fitFromMarket, scoreMatrix: scoreMatrix, marketProbs: marketProbs, topScores: topScores,
+    halfMarkets: halfMarkets, parseBulletin: parseBulletin, matchTeam: matchTeam, teamForm: teamForm, h2h: h2h, analyzeMatch: analyzeMatch, normName: normName };
   if (typeof module !== "undefined") module.exports = root.Engine;
 })(typeof window !== "undefined" ? window : globalThis);

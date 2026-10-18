@@ -26,3 +26,14 @@ for (const r of ref) {
   if (!ok) bad++;
 }
 process.exit(bad ? 1 : 0);
+
+// Piyasa-Poisson: Python (scipy Nelder-Mead) ile aynı beklenen goller ve olasılıklar
+{
+  const f = E.fitFromMarket([2.45, 3.4, 2.8], [1.8, 2.0]);
+  const m = E.marketProbs(E.scoreMatrix(f.lh, f.la, -0.05));
+  const ref = { lh: 1.4349827594963183, la: 1.330633072213364, "1": 0.391, X: 0.266, "2": 0.343, over_2_5: 0.522, btts_yes: 0.567 };
+  const ok = Math.abs(f.lh - ref.lh) < 1e-4 && Math.abs(f.la - ref.la) < 1e-4 &&
+    ["1", "X", "2", "over_2_5", "btts_yes"].every((k) => Math.abs(m[k] - ref[k]) < 1e-3);
+  console.log(ok ? "OK  " : "FAIL", "piyasa-poisson", f.lh.toFixed(4), f.la.toFixed(4));
+  if (!ok) process.exit(1);
+}

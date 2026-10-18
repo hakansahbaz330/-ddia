@@ -29,7 +29,7 @@ def _odds(s: pd.Series) -> np.ndarray:
     return (s.fillna(0) * 100).round().astype("<u2").to_numpy()
 
 
-def export_mobile(df: pd.DataFrame, meta_extra: dict | None = None) -> tuple[bytes, dict]:
+def export_mobile(df: pd.DataFrame, meta_extra: dict | None = None, strength=None, w_market: float = 1.0) -> tuple[bytes, dict]:
     df = df.sort_values(["date", "match_id"]).reset_index(drop=True)
     divs = df[["division", "country", "league"]].drop_duplicates().sort_values(["country", "division"])
     div_idx = {d: i for i, d in enumerate(divs.division)}
@@ -59,6 +59,11 @@ def export_mobile(df: pd.DataFrame, meta_extra: dict | None = None) -> tuple[byt
         "date_range": [str(df.date.min().date()), str(df.date.max().date())],
         **(meta_extra or {}),
     }
+    if strength is not None:  # arşiv güç modeli parametreleri (backend/app/models/strength.py)
+        keys = [f"{c}|{t}" for c, t in zip(teams.country, teams.team, strict=True)]
+        meta["strength"] = {"att": [round(strength.att.get(k, 0.0), 4) for k in keys], "def": [round(strength.dfn.get(k, 0.0), 4) for k in keys],
+                            "base": {d: round(v, 4) for d, v in strength.league_base.items()}, "home": round(strength.home_adv, 4),
+                            "w_market": w_market, "trained_until": strength.before}
     js = json.dumps(meta, ensure_ascii=False, separators=(",", ":")).encode()
     js += b" " * (-len(js) % 4)
     body = b"".join(arrays[c].astype(d).tobytes() + b"\0" * (-(arrays[c].astype(d).nbytes) % 4) for c, d in COLUMNS)

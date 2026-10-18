@@ -1,6 +1,6 @@
 # Test raporu (Faz 1–2)
 
-`cd backend && python -m pytest -q` → **23 geçti** (birim: sütun sınıflandırma, temizleme; entegrasyon: xlsx/csv içe aktarma,
+`cd backend && python -m pytest -q` → **37 geçti (piyasa-Poisson, bülten ayrıştırıcı, The Odds API ayrıştırma/hata yönetimi dahil)** (birim: sütun sınıflandırma, temizleme; entegrasyon: xlsx/csv içe aktarma,
 tekrar/çakışma, bozuk dosya, elle eşleşme, API önizleme/aktarma/hata mesajları/API anahtarı).
 
 Gerçek arşiv doğrulaması (elle çalıştırıldı, otomatik teste dahil değil):
@@ -12,3 +12,6 @@ Gerçek arşiv doğrulaması (elle çalıştırıldı, otomatik teste dahil değ
 **Test edilmeyenler / sınırlar:** PostgreSQL'e karşı çalıştırılmadı (yalnızca SQLite); büyük CSV'ler gerçek dosyayla denenmedi;
 alembic migrasyonu SQLite'ta doğrulandı; arayüz yok; yedek geri yükleme fonksiyonu otomatik testte değil; yükleme sırasında
 aktarım senkron çalışır (arka plan görevi/ilerleme çubuğu sonraki aşama).
+
+
+Mobil: `node mobile/test_parity.mjs` JS motoru ile Python motorunun benzer-maç sıralaması, yüzdeleri ve piyasa-Poisson sonucunu karşılaştırır (hepsi OK). Canlı The Odds API çağrısı ve gerçek telefon denenmedi.

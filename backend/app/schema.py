@@ -212,6 +212,52 @@ class DataQualityLog(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
+class DataSource(Base):
+    """Üçüncü taraf veri kaynağı kaydı: lisans notu, son çekim, kalan kota."""
+
+    __tablename__ = "data_sources"
+    provider: Mapped[str] = mapped_column(String(40), primary_key=True)
+    terms_url: Mapped[str | None] = mapped_column(String(200))
+    license_note: Mapped[str | None] = mapped_column(Text)
+    last_fetch_at: Mapped[datetime | None] = mapped_column(DateTime)
+    requests_remaining: Mapped[int | None] = mapped_column(Integer)
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+
+class LiveFixture(Base):
+    __tablename__ = "live_fixtures"
+    __table_args__ = (UniqueConstraint("provider", "ext_id", name="uq_live_fixture"), Index("ix_live_commence", "commence_time"))
+    id: Mapped[int] = mapped_column(primary_key=True)
+    provider: Mapped[str] = mapped_column(String(40))
+    ext_id: Mapped[str] = mapped_column(String(80))
+    sport_key: Mapped[str] = mapped_column(String(80))
+    league_title: Mapped[str | None] = mapped_column(String(80))
+    division: Mapped[str | None] = mapped_column(String(8))  # arşiv lig kodu (eşleşirse)
+    home: Mapped[str] = mapped_column(String(100))
+    away: Mapped[str] = mapped_column(String(100))
+    home_archive: Mapped[str | None] = mapped_column(String(140))  # "Ülke|Takım" (eşleşirse)
+    away_archive: Mapped[str | None] = mapped_column(String(140))
+    commence_time: Mapped[datetime] = mapped_column(DateTime)
+
+
+class LiveOddsRow(Base):
+    """Zaman damgalı canlı oran gözlemleri. Aynı (maç, bahisçi, pazar, seçim, kaynak güncelleme zamanı) tekrar yazılmaz."""
+
+    __tablename__ = "live_odds"
+    __table_args__ = (
+        UniqueConstraint("fixture_id", "bookmaker", "market", "selection", "source_updated_at", name="uq_live_odds"),
+        Index("ix_live_odds_fixture", "fixture_id"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    fixture_id: Mapped[int] = mapped_column(ForeignKey("live_fixtures.id", ondelete="CASCADE"))
+    bookmaker: Mapped[str] = mapped_column(String(40))
+    market: Mapped[str] = mapped_column(String(10))
+    selection: Mapped[str] = mapped_column(String(10))
+    odds: Mapped[float] = mapped_column(Float)
+    source_updated_at: Mapped[datetime | None] = mapped_column(DateTime)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
 def _outcomes_table() -> Table:
     """Skor/istatistiklerden türetilen gerçekleşen pazar sonuçları (bkz. app/markets.py). NULL = girdi yok."""
     from app.markets import INT_COLUMNS, TEXT_COLUMNS

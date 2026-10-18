@@ -51,6 +51,7 @@ button, input, select { font: inherit; color: inherit; }
 .row { display: flex; gap: 8px; }
 .row > * { flex: 1; min-width: 0; }
 label.f { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+textarea { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; color: var(--ink); font: 13px/1.5 var(--f-mono); resize: vertical; }
 input[type=text], input[type=number], select { width: 100%; min-height: 44px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; color: var(--ink); }
 input.odds { font-family: var(--f-mono); font-size: 20px; text-align: center; font-weight: 500; }
 .seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg); }
@@ -110,7 +111,15 @@ input.odds { font-family: var(--f-mono); font-size: 20px; text-align: center; fo
 
 .tabbar { position: fixed; inset: auto 0 0 0; z-index: 9; background: var(--surface); border-top: 1px solid var(--line); display: flex;
   padding-bottom: env(safe-area-inset-bottom, 0px); padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px); }
-.tabbar button { flex: 1; min-height: 58px; border: 0; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+.mx { display: grid; grid-template-columns: 22px repeat(6, 1fr); gap: 3px; font-size: 11px; text-align: center; font-family: var(--f-mono); }
+.mx .h { color: var(--muted); align-self: center; }
+.mx .c { border-radius: 4px; padding: 7px 0; background: color-mix(in srgb, var(--accent) calc(var(--a) * 1%), var(--bg)); }
+.cmp { display: grid; grid-template-columns: 1fr auto 1fr; gap: 4px 8px; font-size: 13px; align-items: center; }
+.cmp .l { text-align: left; font-family: var(--f-mono); } .cmp .r { text-align: right; font-family: var(--f-mono); } .cmp .m { color: var(--muted); font-size: 11px; text-align: center; }
+.cmp .win { color: var(--accent); font-weight: 600; }
+.mlink { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.mlink b { font-family: var(--f-display); font-size: 16px; }
+.tabbar button { flex: 1; min-height: 58px; min-width: 0; border: 0; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
 .tabbar svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .tabbar button[aria-selected=true] { color: var(--accent); font-weight: 600; }
 .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
@@ -128,7 +137,21 @@ p { margin: 0; }
 <header class="top"><h1>Oran Arşivi</h1><span class="stat" id="stat">Arşiv yükleniyor…</span></header>
 
 <main>
-<section class="tab on" id="tab-analiz" data-tab="analiz">
+<section class="tab on" id="tab-bulten" data-tab="bulten">
+  <div id="bulHome" style="display:flex;flex-direction:column;gap:14px">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Bülten</h2><span class="tag" id="bulTag">örnek satırlar</span></div>
+      <p class="hint">Bahisçi bülteninden maç satırlarını kopyalayıp yapıştırın. Her satır: Ev - Deplasman 1 X 2, isteğe bağlı 2,5 Üst ve 2,5 Alt. Saat ve lig başlıkları yok sayılır.</p>
+      <label class="f" for="bul">Maç satırları<textarea id="bul" rows="7" spellcheck="false" autocomplete="off"></textarea></label>
+      <button class="btn" id="bulGo">Maçları ayrıştır</button>
+      <div id="bulErr"></div>
+    </div>
+    <div id="bulList"></div>
+  </div>
+  <div id="bulDetail" hidden style="display:none;flex-direction:column;gap:14px"></div>
+</section>
+
+<section class="tab" id="tab-analiz" data-tab="analiz">
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Maç oranları</h2><span class="tag" id="exTag">örnek giriş</span></div>
     <div class="row">
@@ -200,13 +223,14 @@ p { margin: 0; }
     <p>Oranlar marjdan arındırılır (p<sub>i</sub> = (1/o<sub>i</sub>) / Σ(1/o<sub>j</sub>)). Benzerlik, 1X2 olasılıkları (ve girilmişse 2,5 üst olasılığı) arasındaki ağırlıklı öklid uzaklığıdır; puan = 100·exp(−uzaklık/0,05). Ağırlıklar başlangıç değerleridir, doğrulama testiyle ayarlanmamıştır. Yüzde aralıkları Wilson %95 güven aralığıdır.</p>
     <p>Her maç için tek bir 1X2 oranı kullanılır: önce Pinnacle kapanış, yoksa piyasa ortalaması kapanış, sonra maç öncesi oranlar. Dosyalarda oran zaman damgası olmadığından “kapanış” yalnızca sütun adına dayanır.</p></div>
   <div class="card"><h2>Sınırlar</h2>
-    <p>Canlı fikstür ve güncel oran bağlantısı yok; oranları elle girersiniz. Arşivde yalnızca 1X2 ve 2,5 üst/alt oranları var. Karşılıklı gol, ilk yarı, korner ve kart sonuçları skorlardan ve istatistiklerden hesaplanır; bu pazarların oranları olmadığından piyasa karşılaştırması yapılamaz. Korner ve kart istatistiği tüm maçlarda yok (örneklem n ile gösterilir). Kupon olasılığı, seçimlerin bağımsız olduğunu varsayar.</p>
+    <p>Bu sayfada canlı oran bağlantısı yok (tarayıcıdaki sayfa dış API'lere bağlanamaz); bülten satırlarını yapıştırırsınız. Canlı fikstür ve oran çekme, kendi bilgisayarınızda çalışan sunucu tarafındadır (README). Bet365, Nesine ve SofaScore'un resmi açık API'leri yok; bunlardan otomatik veri çekmiyoruz. Arşivde yalnızca 1X2 ve 2,5 üst/alt oranları var. Karşılıklı gol, ilk yarı, korner ve kart sonuçları skorlardan ve istatistiklerden hesaplanır; bu pazarların oranları olmadığından piyasa karşılaştırması yapılamaz. Korner ve kart istatistiği tüm maçlarda yok (örneklem n ile gösterilir). Kupon olasılığı, seçimlerin bağımsız olduğunu varsayar.</p>
     <p>Bu uygulama bahis oynatmaz ve kazanç vaadi taşımaz. Beklenen değer teorik bir hesaptır, gerçekleşmiş kâr değildir.</p></div>
 </section>
 </main>
 
 <nav class="tabbar" role="tablist" aria-label="Bölümler">
-  <button role="tab" aria-selected="true" data-go="analiz"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>Analiz</button>
+  <button role="tab" aria-selected="true" data-go="bulten"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>Bülten</button>
+  <button role="tab" aria-selected="false" data-go="analiz"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>Analiz</button>
   <button role="tab" aria-selected="false" data-go="arsiv"><svg viewBox="0 0 24 24"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>Arşiv</button>
   <button role="tab" aria-selected="false" data-go="kupon"><svg viewBox="0 0 24 24"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2zM9 8h6M9 12h6"/></svg>Kupon</button>
   <button role="tab" aria-selected="false" data-go="bilgi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>Bilgi</button>
@@ -320,9 +344,11 @@ p { margin: 0; }
     return c;
   }
   function cell(label, r) {
+    var model = r.kind === "model";
     return h("div", { class: "cell" }, [
       h("div", { class: "t" }, [h("span", { text: label }), h("span", { style: "display:flex;gap:6px;align-items:center" }, [h("b", { text: pct(r.rate) }), addBtn(label, r)])]),
-      bar(r), h("small", { text: "%95 aralık " + pct(r.ci_low, 0) + "–" + pct(r.ci_high, 0) + " · n=" + r.n })
+      model ? h("div", { class: "track", style: "height:6px" }, [h("div", { class: "fill", style: "width:" + r.rate * 100 + "%" })]) : bar(r),
+      h("small", { text: model ? "model olasılığı" : "%95 aralık " + pct(r.ci_low, 0) + "–" + pct(r.ci_high, 0) + " · n=" + r.n })
     ]);
   }
   function renderSummary(root, sum, q, title) {
@@ -473,12 +499,12 @@ p { margin: 0; }
     var save = h("button", { class: "btn", text: "Kupona ekle", onclick: function () {
       var o = parseFloat(String(odds.value).replace(",", "."));
       if (!(o > 1)) { err.textContent = "Sunulan oranı 1,00’dan büyük girin."; err.hidden = false; return; }
-      legs.push({ id: Date.now(), match: name.value.trim() || "Maç", market: label, p: r.rate, lo: r.ci_low, n: r.n, odds: o });
+      legs.push({ id: Date.now(), match: name.value.trim() || "Maç", market: label, p: r.rate, lo: r.kind === "model" ? null : r.ci_low, n: r.n, odds: o, kind: r.kind || "freq" });
       store.set("oa.legs", legs); close(); go("kupon");
     } });
     root.appendChild(h("div", { class: "sheet-bg", onclick: function (e) { if (e.target.className === "sheet-bg") close(); } }, [h("div", { class: "sheet", role: "dialog", "aria-label": "Kupona ekle" }, [
       h("h2", { text: label }),
-      h("p", { class: "hint", text: "Benzer maçlardaki geçmiş sıklık " + pct(r.rate) + " (n=" + r.n + ", alt sınır " + pct(r.ci_low, 0) + "). Bu bir model olasılığı değildir." }),
+      h("p", { class: "hint", text: r.kind === "model" ? "Model olasılığı " + pct(r.rate) + " (piyasa-Poisson). Doğrulanmış bir avantaj göstergesi değildir." : "Benzer maçlardaki geçmiş sıklık " + pct(r.rate) + " (n=" + r.n + ", alt sınır " + pct(r.ci_low, 0) + "). Bu bir model olasılığı değildir." }),
       h("label", { class: "f" }, ["Maç adı (aynı maçtan seçimler aynı adı taşımalı)", name]),
       h("label", { class: "f" }, ["Bahisçinin sunduğu oran", odds]), err,
       h("div", { class: "row" }, [h("button", { class: "btn alt", text: "Vazgeç", onclick: close }), save])])]));
@@ -486,8 +512,8 @@ p { margin: 0; }
   }
   function couponCalc() {
     var total = 1, p = 1, lo = 1, names = {}, dup = false;
-    legs.forEach(function (l) { total *= l.odds; p *= l.p; lo *= l.lo; if (names[l.match]) dup = true; names[l.match] = 1; });
-    return { total: total, p: dup ? null : p, lo: dup ? null : lo, dup: dup };
+    legs.forEach(function (l) { total *= l.odds; p *= l.p; lo = (lo === null || l.lo === null) ? null : lo * l.lo; if (names[l.match]) dup = true; names[l.match] = 1; });
+    return { total: total, p: dup ? null : p, lo: dup || lo === null ? null : lo, dup: dup };
   }
   function renderCoupon() {
     var L = $("legs"), C = $("cpn"); L.textContent = ""; C.textContent = "";
@@ -495,7 +521,7 @@ p { margin: 0; }
     legs.forEach(function (l, k) {
       L.appendChild(h("div", { class: "leg" }, [h("div", { text: l.match + " · " + l.market }),
         h("button", { class: "plus x", "aria-label": "Seçimi sil", text: "×", onclick: function () { legs.splice(k, 1); store.set("oa.legs", legs); renderCoupon(); } }),
-        h("div", { class: "meta num", style: "font-size:12px;color:var(--muted)", text: "oran " + nf(l.odds, 2) + " · geçmiş sıklık " + pct(l.p) + " (n=" + l.n + ")" })]));
+        h("div", { class: "meta num", style: "font-size:12px;color:var(--muted)", text: "oran " + nf(l.odds, 2) + " · " + (l.kind === "model" ? "model olasılığı " + pct(l.p) : "geçmiş sıklık " + pct(l.p) + " (n=" + l.n + ")") })]));
     });
     if (!legs.length) { renderLedger(); return; }
     var c = couponCalc(), dl = h("dl", { class: "kv" });
@@ -503,7 +529,7 @@ p { margin: 0; }
     kv("Seçim sayısı", String(legs.length)); kv("Toplam oran", nf(c.total, 2));
     if (c.dup) C.appendChild(h("div", { class: "warn", text: "Aynı maçtan birden fazla seçim var. Olasılık çarpımı bağımsızlık varsayar ve bu durumda geçersizdir; olasılık ve beklenen değer gösterilmiyor." }));
     else {
-      kv("Tahmini başarı (geçmiş sıklık çarpımı)", pct(c.p)); kv("Temkinli başarı (aralık alt sınırları)", pct(c.lo));
+      kv("Tahmini başarı (olasılık çarpımı)", pct(c.p)); kv("Temkinli başarı (aralık alt sınırları)", c.lo === null ? "– (model seçimi var)" : pct(c.lo));
       kv("Teorik beklenen getiri (EV = p×o − 1)", (c.p * c.total - 1 >= 0 ? "+" : "−") + pct(Math.abs(c.p * c.total - 1)));
     }
     C.appendChild(dl);
@@ -540,6 +566,144 @@ p { margin: 0; }
     });
   }
 
+  /* ---------- bülten ve otomatik maç analizi ---------- */
+  var EXAMPLE = "Galatasaray - Fenerbahce 2,45 3,40 2,80 1,80 2,00\nArsenal - Chelsea 1,70 4,00 5,00 1,75 2,05\nBayern Munich - Dortmund 1,55 4,50 5,50 1,45 2,65\nReal Madrid - Barcelona 2,30 3,60 2,95";
+  var bulItems = [];
+  function showBulList() { $("bulDetail").style.display = "none"; $("bulHome").style.display = "flex"; window.scrollTo(0, 0); }
+  function parseBul() {
+    var out = $("bulList"); out.textContent = ""; $("bulErr").textContent = "";
+    var r = E.parseBulletin($("bul").value);
+    bulItems = r.matches.map(function (m) { m.hIdx = E.matchTeam(D, m.home); m.aIdx = E.matchTeam(D, m.away); return m; });
+    if (r.errors.length) {
+      var w = h("div", { class: "warn" }, [h("b", { text: r.errors.length + " satır okunamadı: " })]);
+      r.errors.slice(0, 5).forEach(function (e) { w.appendChild(h("div", { text: e.line + ". satır: " + e.reason + " — " + e.text })); });
+      $("bulErr").appendChild(w);
+    }
+    if (!bulItems.length) { out.appendChild(h("p", { class: "hint", text: "Ayrıştırılan maç yok. Satır biçimi: Ev - Deplasman 1,85 3,40 4,20" })); return; }
+    out.appendChild(h("h3", { text: bulItems.length + " maç · analiz için dokunun", style: "margin:2px 2px 0" }));
+    bulItems.forEach(function (m, k) {
+      var tagTxt = m.hIdx >= 0 && m.aIdx >= 0 ? "iki takım arşivde" : "arşivde eksik takım var";
+      out.appendChild(h("button", { class: "mlink", onclick: function () { openDetail(k); } }, [
+        h("b", { text: m.home + " – " + m.away }),
+        h("span", { class: "meta num", style: "font-size:12px;color:var(--muted)", text: m.odds.map(function (x) { return nf(x, 2); }).join(" / ") + (m.ou ? "  ·  2,5 ü/a " + nf(m.ou[0], 2) + " / " + nf(m.ou[1], 2) : "") }),
+        h("span", { class: "tag", style: "align-self:flex-start", text: tagTxt })]));
+    });
+  }
+  $("bulGo").addEventListener("click", function () { $("bulTag").hidden = true; parseBul(); });
+  $("bul").addEventListener("input", function () { $("bulTag").hidden = true; });
+
+  function cmpRows(root, rows, hName, aName) {
+    var g = h("div", { class: "cmp" });
+    g.appendChild(h("span", { class: "l", style: "font-weight:600", text: hName })); g.appendChild(h("span", { class: "m", text: "" })); g.appendChild(h("span", { class: "r", style: "font-weight:600", text: aName }));
+    rows.forEach(function (r) {
+      var hv = r[1], av = r[2], better = r[4];  /* better: 1 = yüksek iyi, -1 = düşük iyi, 0 = nötr */
+      var hw = better && hv !== null && av !== null && (better > 0 ? hv > av : hv < av), aw = better && hv !== null && av !== null && (better > 0 ? av > hv : av < hv);
+      g.appendChild(h("span", { class: "l" + (hw ? " win" : ""), text: hv === null ? "–" : r[3](hv) }));
+      g.appendChild(h("span", { class: "m", text: r[0] }));
+      g.appendChild(h("span", { class: "r" + (aw ? " win" : ""), text: av === null ? "–" : r[3](av) }));
+    });
+    root.appendChild(g);
+  }
+  function openDetail(k) {
+    var it = bulItems[k], root = $("bulDetail");
+    function render() {
+      root.textContent = "";
+      var q = { odds: it.odds, ou: it.ou }, R = E.analyzeMatch(D, q, it.hIdx, it.aIdx);
+      var title = h("div", { class: "card" }, [
+        h("button", { class: "btn alt sm", style: "align-self:flex-start", text: "← Bültene dön", onclick: showBulList }),
+        h("h2", { text: it.home + " – " + it.away }),
+        h("div", { class: "num hint", text: it.odds.map(function (x) { return nf(x, 2); }).join(" / ") + (it.ou ? " · 2,5 ü/a " + nf(it.ou[0], 2) + " / " + nf(it.ou[1], 2) : "") }),
+        h("div", { class: "kpis" }, [kpi(nf(R.fit.lh, 2), "beklenen gol (ev)"), kpi(nf(R.fit.la, 2), "beklenen gol (dep)")])]);
+      R.warnings.forEach(function (w) { title.appendChild(h("div", { class: "warn", text: w })); });
+      root.appendChild(title);
+
+      var ts = h("div", { class: "card" }, [h("h2", { text: "En olası skorlar" }), h("p", { class: "hint", text: "Oranlardan çıkarılan beklenen goller ile Poisson (Dixon–Coles düzeltmeli) skor dağılımı." })]);
+      var mxp = R.top[0].p;
+      R.top.forEach(function (t) {
+        ts.appendChild(h("div", { class: "mrow", style: "grid-template-columns:48px 1fr auto" }, [h("span", { class: "lab num", text: t.score }),
+          h("div", { class: "track" }, [h("div", { class: "fill", style: "width:" + t.p / mxp * 100 + "%" })]), h("span", { class: "val", text: pct(t.p) })]));
+      });
+      root.appendChild(ts);
+
+      var mx = h("div", { class: "mx" }, [h("span")]), i, j;
+      for (j = 0; j < 6; j++) mx.appendChild(h("span", { class: "h", text: String(j) }));
+      var mxmax = Math.max.apply(null, R.top.map(function (t) { return t.p; }));
+      for (i = 0; i < 6; i++) { mx.appendChild(h("span", { class: "h", text: String(i) })); for (j = 0; j < 6; j++) mx.appendChild(h("span", { class: "c", style: "--a:" + Math.min(100, R.matrix[i][j] / mxmax * 100), text: nf(R.matrix[i][j] * 100, 1) })); }
+      root.appendChild(h("div", { class: "card" }, [h("h3", { text: "Skor olasılık matrisi (%)" }), h("div", { class: "hint", text: "Satır: ev golü · sütun: deplasman golü (0–5)" }), mx]));
+
+      var C = R.combined, mk = function (label, p) { return cell(label, { rate: p, ci_low: p, ci_high: p, n: 0, kind: "model" }); };
+      var mc = h("div", { class: "card" }, [h("h2", { text: "Pazar olasılıkları" })]);
+      var g1 = h("div", { style: "display:flex;flex-direction:column;gap:6px" });
+      [["1", C["1"]], ["X", C.X], ["2", C["2"]], ["1X", C["1X"]], ["12", C["12"]], ["X2", C.X2]].forEach(function (x) { g1.appendChild(modelCell(x[0], x[1])); });
+      mc.appendChild(g1);
+      [0.5, 1.5, 2.5, 3.5, 4.5].forEach(function (x) { var p = C["over_" + String(x).replace(".", "_")], pr = h("div", { class: "pair" }); pr.appendChild(modelCell(nf(x, 1) + " üst", p)); pr.appendChild(modelCell(nf(x, 1) + " alt", 1 - p)); mc.appendChild(pr); });
+      var pk = h("div", { class: "pair" }); pk.appendChild(modelCell("KG var", C.btts_yes)); pk.appendChild(modelCell("KG yok", 1 - C.btts_yes)); mc.appendChild(pk);
+      mc.appendChild(h("div", { class: "hint", text: "İlk yarı (yaklaşık, sabit gol payı %44,4): İY 1 " + pct(R.half.ht_1, 0) + " · X " + pct(R.half.ht_x, 0) + " · 2 " + pct(R.half.ht_2, 0) + " · İY 1,5 üst " + pct(R.half.ht_o15, 0) + " · İY KG " + pct(R.half.ht_btts, 0) }));
+      root.appendChild(mc);
+
+      var md = h("div", { class: "card" }, [h("h2", { text: "Model karşılaştırması" })]);
+      var rows = [["1", "1"], ["X", "X"], ["2", "2"], ["2,5 üst", "over_2_5"], ["KG var", "btts_yes"]];
+      var tb = h("tbody"); rows.forEach(function (r) {
+        tb.appendChild(h("tr", {}, [r[0], pct(R.market[r[1]], 0), R.strength ? pct(R.strength.market[r[1]], 0) : "–", pct(R.combined[r[1]], 0)].map(function (x) { return h("td", { text: x }); })));
+      });
+      tb.appendChild(h("tr", {}, ["Beklenen gol", nf(R.fit.lh, 2) + "/" + nf(R.fit.la, 2), R.strength ? nf(R.strength.lh, 2) + "/" + nf(R.strength.la, 2) : "–", "–"].map(function (x) { return h("td", { text: x }); })));
+      md.appendChild(h("div", { class: "tbl" }, [h("table", {}, [h("thead", {}, [h("tr", {}, ["", "Piyasa", "Arşiv güç", "Birleşik"].map(function (x) { return h("th", { text: x }); }))]), tb])]));
+      md.appendChild(h("div", { class: "hint", text: "Birleşimde piyasa ağırlığı " + nf(R.wMarket, 2) + ": 2024-25 doğrulama sezonunda seçildi, 2025-26 testinde piyasa güç modelinden daha iyiydi (log-kayıp 0,989 − 1,020). Güç modeli piyasaya bir şey katmadığı için birleşik sonuç piyasaya eşittir; güç modeli ayrışma uyarısı için gösterilir." }));
+      if (R.disagree) md.appendChild(h("div", { class: R.disagree.flag ? "warn" : "hint", text: "En büyük ayrışma: " + nf(R.disagree.max * 100, 1) + " puan" }));
+      root.appendChild(md);
+
+      var sm = R.similar;
+      if (sm.used) {
+        var sc = h("div", { class: "card" }, [h("h2", { text: "Benzer oranlı geçmiş maçlar" }), h("p", { class: "hint", text: "Tüm arşivde bu oranlara en çok benzeyen " + sm.used + " maçın gerçekleşme sıklığı (ortalama benzerlik " + nf(sm.sim_mean, 0) + "/100)." })]);
+        var mm = sm.summary.markets, pr2 = h("div", { class: "pair" });
+        ["1", "X", "2"].forEach(function (k2) { pr2.appendChild(cell("MS " + k2, mm["Maç sonucu"][k2])); });
+        pr2.appendChild(cell("2,5 üst", mm["Gol üst (maç)"]["2.5 üst"])); pr2.appendChild(cell("KG var", mm["Karşılıklı gol"]["KG var"]));
+        sc.appendChild(pr2);
+        var ch = h("div", { class: "chips" }); sm.summary.top_scores.slice(0, 6).forEach(function (t) { ch.appendChild(h("span", { class: "chip" }, [t.score + " ", h("small", { text: pct(t.rate, 0) })])); });
+        sc.appendChild(ch); root.appendChild(sc);
+      }
+
+      var fc = h("div", { class: "card" }, [h("h2", { text: "Takım istatistikleri (arşiv)" })]);
+      var selH = h("input", { type: "text", list: "dlTeams", value: it.hIdx >= 0 ? teamLabel(it.hIdx) : "", placeholder: "Ev sahibi (arşiv)", id: "dH" });
+      var selA = h("input", { type: "text", list: "dlTeams", value: it.aIdx >= 0 ? teamLabel(it.aIdx) : "", placeholder: "Deplasman (arşiv)", id: "dA" });
+      var ch2 = function () { var a = teamIdx(selH.value), b = teamIdx(selA.value); if (a !== it.hIdx || b !== it.aIdx) { it.hIdx = a; it.aIdx = b; render(); } };
+      selH.addEventListener("change", ch2); selA.addEventListener("change", ch2);
+      fc.appendChild(h("div", { class: "row" }, [h("label", { class: "f" }, ["Ev sahibi", selH]), h("label", { class: "f" }, ["Deplasman", selA])]));
+      if (R.form) {
+        var f = R.form, P = function (x) { return pct(x, 0); }, N2 = function (x) { return nf(x, 2); }, N1 = function (x) { return nf(x, 1); }, S = function (x) { return x; };
+        function block(title, A, B, an, bn) {
+          fc.appendChild(h("h3", { text: title }));
+          cmpRows(fc, [["puan/maç", A.ppg, B.ppg, N2, 1], ["attığı gol", A.gf, B.gf, N2, 1], ["yediği gol", A.ga, B.ga, N2, -1], ["galibiyet", A.win, B.win, P, 1],
+            ["gol yememe", A.cs, B.cs, P, 1], ["KG var", A.btts, B.btts, P, 0], ["2,5 üst", A.o25, B.o25, P, 0], ["maç korner", A.corners, B.corners, N1, 0], ["maç kart", A.cards, B.cards, N1, 0], ["form", A.form, B.form, S, 0]], an, bn);
+        }
+        block("Son 10 maç (tüm)", f.h, f.a, it.home, it.away);
+        block("Ev sahibi evde · deplasman dışarıda (son 10)", f.hh, f.aa, it.home, it.away);
+        fc.appendChild(h("div", { class: "hint", text: "Form: G galibiyet, B beraberlik, M mağlubiyet (eskiden yeniye). Korner ve kart değerleri maç toplamıdır; takım bazlı değildir ve her maçta veri yoktur." }));
+      }
+      root.appendChild(fc);
+
+      if (R.h2h && R.h2h.length) {
+        var hc = h("div", { class: "card" }, [h("h2", { text: "Karşılıklı geçmiş" })]), hl = h("div", { class: "mlist" });
+        R.h2h.forEach(function (i2) { hl.appendChild(matchRow(i2)); }); hc.appendChild(hl); root.appendChild(hc);
+      } else if (it.hIdx >= 0 && it.aIdx >= 0) root.appendChild(h("div", { class: "card" }, [h("h2", { text: "Karşılıklı geçmiş" }), h("p", { class: "hint", text: "Arşivde bu iki takımın maçı yok." })]));
+
+      var ev = h("div", { class: "card" }, [h("h2", { text: "Teorik beklenen değer" })]), evb = h("tbody");
+      var offered = [["1", it.odds[0], C["1"]], ["X", it.odds[1], C.X], ["2", it.odds[2], C["2"]]];
+      if (it.ou) { offered.push(["2,5 üst", it.ou[0], C.over_2_5]); offered.push(["2,5 alt", it.ou[1], 1 - C.over_2_5]); }
+      offered.forEach(function (o) { var e = o[2] * o[1] - 1; evb.appendChild(h("tr", {}, [o[0], nf(o[1], 2), pct(o[2]), (e >= 0 ? "+" : "−") + pct(Math.abs(e))].map(function (x) { return h("td", { text: x }); }))); });
+      ev.appendChild(h("div", { class: "tbl" }, [h("table", {}, [h("thead", {}, [h("tr", {}, ["Seçim", "Oran", "Model p", "EV"].map(function (x) { return h("th", { text: x }); }))]), evb])]));
+      ev.appendChild(h("div", { class: "hint", text: "EV = p × oran − 1. Olasılık aynı oranlardan türetildiği için sonuç yaklaşık −bahisçi marjıdır. Pozitif bir değer, başka bahisçide daha yüksek oran veya model sapması demektir; doğrulanmadan avantaj sayılmaz ve gerçekleşmiş kâr değildir." }));
+      root.appendChild(ev);
+    }
+    function modelCell(label, p) { return cell(label, { rate: p, ci_low: p, ci_high: p, n: 0, kind: "model" }); }
+    $("bulHome").style.display = "none"; root.style.display = "flex"; root.hidden = false; window.scrollTo(0, 0);
+    setTimeout(render, 10);
+  }
+  function teamLabel(i) {
+    var t = D.meta.teams[i], c = 0; D.meta.teams.forEach(function (x) { if (x.name === t.name) c++; });
+    return c > 1 ? t.name + " · " + t.country : t.name;
+  }
+
   /* ---------- açılış ---------- */
   function fillSelects() {
     var byC = {}; D.meta.divs.forEach(function (d) { (byC[d.country] = byC[d.country] || []).push(d); });
@@ -569,7 +733,7 @@ p { margin: 0; }
     if (typeof DecompressionStream === "undefined") { $("stat").textContent = "Tarayıcı bu veriyi açamıyor (güncel Chrome/Safari gerekir)."; return; }
     var bytes = b64ToBytes($("blob").textContent.trim());
     new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer().then(function (buf) {
-      D = E.decode(buf); fillSelects(); analyze();
+      D = E.decode(buf); fillSelects(); $("bul").value = EXAMPLE; parseBul(); analyze();
     }).catch(function (e) { $("stat").textContent = "Arşiv açılamadı: " + e.message; });
   }
   start();

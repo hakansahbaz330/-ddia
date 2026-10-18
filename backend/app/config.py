@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     upload_dir: Path = REPO_DIR / "data" / "uploads"
     api_key: str = ""
     max_upload_mb: int = 200
+    odds_api_key: str = ""
+    odds_api_regions: str = "eu"
 
 
 @lru_cache

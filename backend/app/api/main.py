@@ -219,3 +219,86 @@ def similar(req: SimilarRequest, session: Session = Depends(get_session)):
                        min_sim=req.min_similarity, min_sample=req.min_sample)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
+
+
+# ---------------- canlı veri, bülten, otomatik maç analizi ----------------
+_matcher_cache: dict = {}
+
+
+def _matcher(session: Session):
+    if "m" not in _matcher_cache:
+        from app.services.teams import TeamMatcher
+        _matcher_cache["m"] = TeamMatcher(_frame(session))
+    return _matcher_cache["m"]
+
+
+@app.get("/api/live/status")
+def live_status(session: Session = Depends(get_session)):
+    from app.services.live import provider_status
+    return provider_status(session)
+
+
+class RefreshRequest(BaseModel):
+    sport_keys: list[str] = Field(min_length=1, max_length=10)
+
+
+@app.post("/api/live/refresh", dependencies=[Depends(require_key)])
+def live_refresh(req: RefreshRequest, session: Session = Depends(get_session)):
+    from app.providers.base import ProviderError
+    from app.services.live import refresh
+    try:
+        return refresh(session, req.sport_keys, _matcher(session))
+    except ProviderError as exc:
+        status = {"no_key": 503, "bad_key": 502, "quota": 429, "network": 504}.get(exc.code, 502)
+        raise HTTPException(status, str(exc)) from exc
+
+
+@app.get("/api/live/fixtures")
+def live_fixtures(hours: int = Query(72, ge=1, le=720), session: Session = Depends(get_session)):
+    from app.services.live import list_fixtures
+    return list_fixtures(session, hours)
+
+
+class BulletinRequest(BaseModel):
+    text: str = Field(max_length=200_000)
+
+
+@app.post("/api/bulletin/parse")
+def bulletin_parse(req: BulletinRequest, session: Session = Depends(get_session)):
+    """Yapıştırılan bülteni ayrıştırır ve takımları arşivle eşler (veritabanına yazmaz)."""
+    from app.providers.manual import parse_bulletin
+    res = parse_bulletin(req.text)
+    df = _frame(session)
+    if not df.empty:
+        m = _matcher(session)
+        for x in res["matches"]:
+            x["home_archive"], x["away_archive"] = m.match(None, x["home"]), m.match(None, x["away"])
+    return res
+
+
+class AnalyzeRequest(BaseModel):
+    odds_1x2: tuple[float, float, float]
+    odds_ou25: tuple[float, float] | None = None
+    home_archive: str | None = None  # "Ülke|Takım" (bulletin/parse veya fixtures'tan)
+    away_archive: str | None = None
+    division: str | None = None
+    offered_1x2: tuple[float, float, float] | None = None
+    offered_ou25: tuple[float, float] | None = None
+
+    @model_validator(mode="after")
+    def _valid(self):
+        for o in (self.odds_1x2, self.odds_ou25, self.offered_1x2, self.offered_ou25):
+            if o and any(x <= 1.0 for x in o):
+                raise ValueError("Oranlar 1.00'dan büyük olmalı.")
+        return self
+
+
+@app.post("/api/match/analyze")
+def match_analyze(req: AnalyzeRequest, session: Session = Depends(get_session)):
+    from app.services.analysis import analyze_match, attach_ev
+    df = _frame(session)
+    if df.empty:
+        raise HTTPException(409, "Arşiv boş: önce maç dosyalarını içe aktarın.")
+    res = analyze_match(df, odds_1x2=req.odds_1x2, odds_ou25=req.odds_ou25, home_key=req.home_archive,
+                        away_key=req.away_archive, division=req.division)
+    return attach_ev(res, req.offered_1x2 or req.odds_1x2, req.offered_ou25 or req.odds_ou25)

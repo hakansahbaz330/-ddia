@@ -2,7 +2,8 @@
 
 Durum: **Faz 1 + Faz 2 tamamlandı** (ortam/arşiv incelemesi, içe aktarma, temizleme, veritabanı).
 Faz 3 (benzer oran arama) tamamlandı: `backend/app/analysis/`, `POST /api/similar`, ve telefonda çalışan tek dosyalı uygulama `mobile/`.
-Faz 4–9 (Poisson/Elo modelleri, geriye dönük test, canlı API, otomatik kupon, Next.js arayüzü) **henüz yapılmadı**.
+Poisson (piyasa) + arşiv güç modeli, bülten ayrıştırma, The Odds API bağlayıcısı ve tek maç otomatik analizi eklendi ([docs/live-data.md](docs/live-data.md)).
+Henüz yapılmadı: tam walk-forward backtest raporu, otomatik kupon üretimi, API-Football/istatistik sağlayıcısı, Next.js arayüzü.
 
 ## Kurulum
 ```bash
@@ -33,7 +34,7 @@ cd backend && uvicorn app.api.main:app --reload --port 8000     # belgeler: http
 
 ## Testler
 ```bash
-cd backend && python -m pytest -q      # 31 test
+cd backend && python -m pytest -q      # 37 test
 ```
 Sonuçlar ve sınırlamalar: [docs/test-report.md](docs/test-report.md).
 
