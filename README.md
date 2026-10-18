@@ -54,3 +54,6 @@ cd backend && PYTHONPATH=. python ../mobile/build.py      # mobile/dist/oran-ars
 PYTHONPATH=. python ../mobile/make_parity_ref.py /tmp/parity && node ../mobile/test_parity.mjs /tmp/parity
 ```
 Benzerlik yöntemi ve sınırları uygulamanın "Bilgi" sekmesinde ve `backend/app/analysis/similarity.py` başlığında.
+
+## Tek dokunuşla bülten
+`uvicorn app.api.main:app` çalışırken `http://localhost:8000/bookmarklet` → yer imini ekleyin → bülten sayfasında tıklayın → `http://localhost:8000/app` Bülten sekmesinde maçlar listelenir. Ayrıntı: docs/live-data.md.

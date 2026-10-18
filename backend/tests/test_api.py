@@ -75,3 +75,17 @@ def test_similar_endpoint_validation(client):
     assert r.status_code == 422
     r = client.post("/api/similar", json={"odds_1x2": [2.0, 3.4, 3.8], "scope": "league"})
     assert r.status_code == 409 and "Arşiv boş" in r.json()["detail"]
+
+
+def test_bulletin_inbox_roundtrip(client, monkeypatch):
+    assert client.get("/api/bulletin/inbox").json() == {"id": 0, "new": False}
+    r = client.post("/api/bulletin/inbox?s=www.nesine.com", content="A - B 1,5 3,2 5,0".encode(), headers={"content-type": "text/plain"})
+    assert r.status_code == 204 and r.headers["access-control-allow-origin"] == "*"
+    g = client.get("/api/bulletin/inbox", params={"after": 0}).json()
+    assert g["new"] and g["source"] == "www.nesine.com" and "A - B" in g["text"]
+    assert client.get("/api/bulletin/inbox", params={"after": g["id"]}).json()["new"] is False
+    assert client.post("/api/bulletin/inbox", content=b"  ").status_code == 400
+    monkeypatch.setattr(get_settings(), "api_key", "gizli")
+    assert client.get("/api/bulletin/inbox").status_code == 401
+    assert client.options("/api/bulletin/inbox").status_code == 204
+    assert "javascript:" in client.get("/bookmarklet").text

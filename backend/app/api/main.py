@@ -302,3 +302,75 @@ def match_analyze(req: AnalyzeRequest, session: Session = Depends(get_session)):
     res = analyze_match(df, odds_1x2=req.odds_1x2, odds_ou25=req.odds_ou25, home_key=req.home_archive,
                         away_key=req.away_archive, division=req.division)
     return attach_ev(res, req.offered_1x2 or req.odds_1x2, req.offered_ou25 or req.odds_ou25)
+
+
+# ---------------- tek dokunuşla bülten gelen kutusu (yer imi) ----------------
+from fastapi import Request, Response  # noqa: E402
+from fastapi.responses import FileResponse, HTMLResponse  # noqa: E402
+
+_inbox: dict = {"id": 0, "text": "", "source": "", "ts": None}
+INBOX_MAX = 400_000
+
+
+def _check_inbox_key(k: str | None) -> None:
+    key = get_settings().api_key
+    if key and not secrets.compare_digest(k or "", key):
+        raise HTTPException(401, "Geçersiz anahtar (k).")
+
+
+@app.options("/api/bulletin/inbox")
+def inbox_preflight(request: Request):
+    h = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+         "Access-Control-Allow-Headers": "*", "Access-Control-Allow-Private-Network": "true"}
+    return Response(status_code=204, headers=h)
+
+
+@app.post("/api/bulletin/inbox")
+async def inbox_post(request: Request, s: str = "", k: str | None = None):
+    """Yer imi, açık sayfanın görünen metnini buraya gönderir (text/plain). Metin ayrıştırılmadan saklanır."""
+    _check_inbox_key(k)
+    body = (await request.body())[: INBOX_MAX * 4].decode("utf-8", errors="replace")[:INBOX_MAX]
+    if not body.strip():
+        raise HTTPException(400, "Boş içerik.")
+    from datetime import datetime
+    _inbox.update(id=_inbox["id"] + 1, text=body, source=s[:60], ts=datetime.now().isoformat(timespec="seconds"))
+    return Response(status_code=204, headers={"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Private-Network": "true"})
+
+
+@app.get("/api/bulletin/inbox")
+def inbox_get(after: int = 0, k: str | None = None):
+    _check_inbox_key(k)
+    if _inbox["id"] <= after:
+        return {"id": _inbox["id"], "new": False}
+    return {"id": _inbox["id"], "new": True, "text": _inbox["text"], "source": _inbox["source"], "ts": _inbox["ts"]}
+
+
+APP_FILE = get_settings().upload_dir.parent.parent / "mobile" / "dist" / "oran-arsivi.html"
+
+
+@app.get("/app")
+def serve_app():
+    """Aynı uygulamayı yerel sunucudan sunar; böylece gelen kutusuna bağlanabilir."""
+    if not APP_FILE.exists():
+        raise HTTPException(404, "Uygulama dosyası yok: cd backend && PYTHONPATH=. python ../mobile/build.py")
+    return FileResponse(APP_FILE, media_type="text/html")
+
+
+@app.get("/bookmarklet", response_class=HTMLResponse)
+def bookmarklet(request: Request):
+    base = f"{request.url.scheme}://{request.headers.get('host', 'localhost:8000')}"
+    key = get_settings().api_key
+    q = f"&k={key}" if key else ""
+    code = ("javascript:(function(){var t=(document.body.innerText||'').slice(0,%d);"
+            "try{navigator.clipboard.writeText(t)}catch(e){}"
+            "fetch('%s/api/bulletin/inbox?s='+encodeURIComponent(location.hostname)+'%s',{method:'POST',mode:'no-cors',body:t})"
+            ".then(function(){alert('Bülten gönderildi ('+t.length+' karakter)')}).catch(function(){alert('Gönderilemedi: sunucu çalışıyor mu?')})})()") % (INBOX_MAX, base, q)
+    import html as _h
+    return f"""<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>Bülten yer imi</title><body style="font:16px system-ui;max-width:640px;margin:2rem auto;padding:0 1rem;line-height:1.5">
+<h1>Bülten yer imi</h1>
+<p>Bu bağlantıyı yer imleri çubuğuna <b>sürükleyin</b>: <a href="{_h.escape(code, quote=True)}" style="padding:.4rem .8rem;background:#0b6b50;color:#fff;border-radius:8px;text-decoration:none">Bülteni gönder</a></p>
+<ol><li>Kendi tarayıcınızda Nesine veya bahisçi bülten sayfasını açın, maç listesi görünsün (gerekirse aşağı kaydırıp tüm maçları yükleyin).</li>
+<li>Yer imine tıklayın. Sayfada <i>görünen</i> metin bu sunucuya gönderilir ve panoya kopyalanır.</li>
+<li><a href="{base}/app">Uygulamayı</a> açın: Bülten sekmesinde maçlar kendiliğinden listelenir.</li></ol>
+<p style="color:#555;font-size:14px">Yer imi yalnızca sizin tarayıcınızda, sizin açtığınız sayfanın metnini okur; siteye istek göndermez ve koruma aşmaz. Sunucu {_h.escape(base)} adresinde çalışmalıdır.</p>"""

@@ -146,6 +146,7 @@ p { margin: 0; }
       <div class="row"><button class="btn" id="bulGo">Maçları ayrıştır</button><button class="btn alt" id="bulFile" type="button">Dosyadan yükle</button></div>
       <input id="bulFileIn" type="file" accept=".txt,.csv,.html,.htm,text/plain,text/html,text/csv" hidden>
       <p class="hint">Dosya: bülten sayfasını tarayıcıdan “Farklı kaydet” ile kaydettiğiniz .html dosyası veya .txt/.csv. Sayfa içeriği tarayıcınızda okunur, hiçbir yere gönderilmez. Çok satırlı kopyalamalar (takımlar ve oranlar alt alta) da okunur.</p>
+      <div id="inboxInfo" class="hint" hidden></div>
       <div id="bulErr"></div>
     </div>
     <div id="bulList"></div>
@@ -740,11 +741,26 @@ p { margin: 0; }
   showMarket();
 
   function b64ToBytes(s) { var bin = atob(s), n = bin.length, u = new Uint8Array(n); for (var i = 0; i < n; i++) u[i] = bin.charCodeAt(i); return u; }
+  var inboxLast = 0, inboxTimer = null;
+  function startInbox() {
+    if (!/^https?:$/.test(location.protocol) || /claude\.ai|claudeusercontent/.test(location.hostname)) return;
+    function poll() {
+      fetch("/api/bulletin/inbox?after=" + inboxLast).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (j) {
+        var info = $("inboxInfo"); info.hidden = false;
+        if (!info.dataset.ok) { info.dataset.ok = "1"; info.textContent = "Gelen kutusu bağlı: tarayıcınızdaki yer imi ile bülten gönderin (/bookmarklet sayfası)."; }
+        if (j.new) {
+          inboxLast = j.id; $("bul").value = j.text; $("bulTag").hidden = true; parseBul(); showBulList();
+          info.textContent = "Gelen kutusundan alındı: " + (j.source || "sayfa") + " · " + (j.ts || "") + " · " + bulItems.length + " maç";
+        }
+      }).catch(function () { clearInterval(inboxTimer); });
+    }
+    poll(); inboxTimer = setInterval(poll, 2500);
+  }
   function start() {
     if (typeof DecompressionStream === "undefined") { $("stat").textContent = "Tarayıcı bu veriyi açamıyor (güncel Chrome/Safari gerekir)."; return; }
     var bytes = b64ToBytes($("blob").textContent.trim());
     new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer().then(function (buf) {
-      D = E.decode(buf); fillSelects(); $("bul").value = EXAMPLE; parseBul(); analyze();
+      D = E.decode(buf); fillSelects(); $("bul").value = EXAMPLE; parseBul(); analyze(); startInbox();
     }).catch(function (e) { $("stat").textContent = "Arşiv açılamadı: " + e.message; });
   }
   start();
