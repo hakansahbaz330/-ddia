@@ -139,6 +139,8 @@ input.odds { font-family: var(--f-mono); font-size: 20px; text-align: center; fo
 .cp { border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; background: var(--bg); }
 .cpl { display: grid; grid-template-columns: 62px 1fr auto; gap: 6px; align-items: baseline; font-size: 13px; padding: 3px 0; border-bottom: 1px dashed var(--line); }
 .rl { display: grid; grid-template-columns: 44px 1fr auto; gap: 6px; font-size: 13px; padding: 3px 0; border-bottom: 1px dashed var(--line); }
+.lwrap { display: flex; flex-wrap: wrap; gap: 6px; }
+.lchip:disabled { opacity: .4; cursor: default; }
 .cks { display: flex; flex-wrap: wrap; gap: 6px 14px; } .ck { display: flex; gap: 6px; align-items: center; font-size: 13px; min-height: 32px; }
 .ck input { width: 18px; height: 18px; }
 tr.me td { background: var(--accent-soft); font-weight: 600; }
@@ -245,6 +247,7 @@ p { margin: 0; }
     <p class="hint" id="gProfNote">Belirlediğiniz oran aralığında ortak olasılığı en yüksek kupon.</p>
     <div class="row"><label class="f" for="gLegs">Maç sayısı<input id="gLegs" type="number" min="1" max="10" inputmode="numeric"></label>
       <label class="f" for="gDay">Gün<select id="gDay"></select></label></div>
+    <div><div class="hint" style="margin-bottom:4px">Lig <span id="gLigNote">(seçmezseniz tüm ligler)</span></div><div class="lwrap" id="gLeagues" role="group" aria-label="Lig filtresi"></div></div>
     <div class="row"><label class="f" for="gMinO">Min toplam oran<input id="gMinO" type="text" inputmode="decimal"></label>
       <label class="f" for="gMaxO">Maks toplam oran<input id="gMaxO" type="text" inputmode="decimal"></label></div>
     <div class="row"><label class="f" for="gMinP">Seçim olasılığı min %<input id="gMinP" type="text" inputmode="decimal"></label>
@@ -854,6 +857,15 @@ p { margin: 0; }
     });
     var days = Array.from(new Set(wkItems.map(function (x) { return x.date; }))).sort(), dsel = $("gDay"); dsel.textContent = "";
     dsel.appendChild(h("option", { value: "all", text: "Tüm günler" })); days.forEach(function (d) { dsel.appendChild(h("option", { value: d, text: dayLabel(d) })); });
+    var gl = $("gLeagues"); gl.textContent = "";
+    Array.from(new Set(wkItems.map(function (x) { return x.division; }))).sort(function (a, b) { return ligRank(a) - ligRank(b); }).forEach(function (code) {
+      gl.appendChild(h("button", { class: "lchip", type: "button", "aria-pressed": "false", "data-v": code, text: ligName(code) }));
+    });
+    gl.addEventListener("click", function (e) {
+      var b2 = e.target.closest("button"); if (!b2 || b2.disabled) return;
+      b2.setAttribute("aria-pressed", b2.getAttribute("aria-pressed") === "true" ? "false" : "true"); updateLigNote();
+    });
+    dsel.addEventListener("change", updateGenLeagues); updateGenLeagues();
     function preset(name) { var p = PRESETS[name]; $("gMinP").value = p.minP; $("gMaxP").value = p.maxP; $("gMinO").value = p.minO; $("gMaxO").value = p.maxO; $("gLegs").value = p.legs; }
     preset("dengeli");
     $("gProf").addEventListener("click", function (e) {
@@ -866,19 +878,35 @@ p { margin: 0; }
       computeAllB(function () { btn.disabled = false; runGenerator(); });
     });
   }
+  function selectedGenLeagues() { return Array.from($("gLeagues").querySelectorAll("button")).filter(function (b) { return b.getAttribute("aria-pressed") === "true"; }).map(function (b) { return b.dataset.v; }); }
+  function updateLigNote() { var n = selectedGenLeagues().length; $("gLigNote").textContent = n ? "(" + n + " lig seçili)" : "(seçmezseniz tüm ligler)"; }
+  /* gün seçimine göre her ligin maç sayısını güncelle; maçı olmayan lig seçilemez */
+  function updateGenLeagues() {
+    var day = $("gDay").value, cnt = {};
+    wkItems.forEach(function (x) { if (day === "all" || x.date === day) cnt[x.division] = (cnt[x.division] || 0) + 1; });
+    $("gLeagues").querySelectorAll("button").forEach(function (b) {
+      var n = cnt[b.dataset.v] || 0; b.textContent = ligName(b.dataset.v) + " " + n; b.disabled = n === 0;
+      if (n === 0) b.setAttribute("aria-pressed", "false");
+    });
+    updateLigNote();
+  }
   function readNum(id, def) { var v = parseFloat(String($(id).value).replace(",", ".")); return isFinite(v) ? v : def; }
   function runGenerator() {
     var out = $("gOut"); out.textContent = "";
     var groups = Array.from($("gGroups").querySelectorAll("input")).filter(function (x) { return x.checked; }).map(function (x) { return x.dataset.g; });
-    var day = $("gDay").value, cands = [];
+    var day = $("gDay").value, cands = [], ligs = selectedGenLeagues();
     if (!groups.length) { out.appendChild(h("div", { class: "warn", text: "En az bir pazar seçin." })); return; }
     wkItems.forEach(function (it) {
       if (day !== "all" && it.date !== day) return;
+      if (ligs.length && ligs.indexOf(it.division) < 0) return;
       it._B.markets.forEach(function (r) { cands.push({ mi: it.mi, match: it.home + " – " + it.away, league: it.division, group: r.group, label: r.label, odds: r.odds, p: r.model, date: it.date, time: it.time }); });
     });
     var o = { legs: Math.max(1, Math.min(10, Math.round(readNum("gLegs", 4)))), minOdds: readNum("gMinO", 1), maxOdds: readNum("gMaxO", 1000), minP: readNum("gMinP", 0) / 100, maxP: readNum("gMaxP", 100) / 100,
       perLeague: Math.max(1, Math.round(readNum("gPerLeague", 2))), count: Math.max(1, Math.min(6, Math.round(readNum("gCount", 3)))), groups: groups };
     o.noRepeatMatch = $("gNoMatch").checked;
+    var nMatch = Object.keys(cands.reduce(function (a, c) { a[c.mi] = 1; return a; }, {})).length;
+    if (ligs.length) o.perLeague = Math.max(o.perLeague, Math.ceil(o.legs / ligs.length)); /* seçili liglerde lig başına sınır kuponu kısıtlamasın */
+    if (nMatch < o.legs) { out.appendChild(h("div", { class: "warn", text: "Seçili gün ve liglerde yalnızca " + nMatch + " maç var; " + o.legs + " maçlık kupon için maç sayısını azaltın veya filtreyi genişletin." })); return; }
     var r = E.buildCoupons(cands, o);
     out.appendChild(h("div", { class: "hint", text: r.matchesInPool + " maçta " + r.poolSize + " aday seçim süzüldü." }));
     if (r.coupons.length && r.coupons.length < o.count) out.appendChild(h("div", { class: "warn", text: o.count + " kupon istendi; yinelenen seçim olmadan koşullara uyan " + r.coupons.length + " kupon bulundu." }));
