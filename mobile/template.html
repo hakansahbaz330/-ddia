@@ -139,8 +139,15 @@ input.odds { font-family: var(--f-mono); font-size: 20px; text-align: center; fo
 .cp { border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; background: var(--bg); }
 .cpl { display: grid; grid-template-columns: 62px 1fr auto; gap: 6px; align-items: baseline; font-size: 13px; padding: 3px 0; border-bottom: 1px dashed var(--line); }
 .rl { display: grid; grid-template-columns: 44px 1fr auto; gap: 6px; font-size: 13px; padding: 3px 0; border-bottom: 1px dashed var(--line); }
-.lwrap { display: flex; flex-wrap: wrap; gap: 6px; }
-.lchip:disabled { opacity: .4; cursor: default; }
+.ligsel { position: relative; display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.ligsel .selbtn { font-size: 15px; }
+.selbtn { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 44px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; color: var(--ink); text-align: left; cursor: pointer; }
+.ligpanel { margin-top: 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); max-height: 46vh; overflow-y: auto; padding: 4px 0; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+.ligpanel label.ck { display: flex; justify-content: space-between; padding: 8px 12px; min-height: 44px; border-bottom: 1px solid var(--line); cursor: pointer; align-items: center; gap: 10px; font-size: 14px; }
+.ligpanel label.ck:last-child { border-bottom: 0; }
+.ligpanel label.ck > span { display: flex; gap: 10px; align-items: center; }
+.ligpanel label.ck.off { opacity: .4; }
+.ligpanel .clr { width: 100%; text-align: left; background: transparent; border: 0; padding: 10px 12px; min-height: 44px; color: var(--accent); font-weight: 600; cursor: pointer; border-bottom: 1px solid var(--line); }
 .cks { display: flex; flex-wrap: wrap; gap: 6px 14px; } .ck { display: flex; gap: 6px; align-items: center; font-size: 13px; min-height: 32px; }
 .ck input { width: 18px; height: 18px; }
 tr.me td { background: var(--accent-soft); font-weight: 600; }
@@ -247,7 +254,9 @@ p { margin: 0; }
     <p class="hint" id="gProfNote">Belirlediğiniz oran aralığında ortak olasılığı en yüksek kupon.</p>
     <div class="row"><label class="f" for="gLegs">Maç sayısı<input id="gLegs" type="number" min="1" max="10" inputmode="numeric"></label>
       <label class="f" for="gDay">Gün<select id="gDay"></select></label></div>
-    <div><div class="hint" style="margin-bottom:4px">Lig <span id="gLigNote">(seçmezseniz tüm ligler)</span></div><div class="lwrap" id="gLeagues" role="group" aria-label="Lig filtresi"></div></div>
+    <div class="f ligsel"><span>Lig</span>
+      <button type="button" class="selbtn" id="gLigBtn" aria-haspopup="true" aria-expanded="false"><span id="gLigTxt">Tüm ligler</span><span aria-hidden="true">▾</span></button>
+      <div class="ligpanel" id="gLeagues" role="group" aria-label="Lig seçimi" hidden></div></div>
     <div class="row"><label class="f" for="gMinO">Min toplam oran<input id="gMinO" type="text" inputmode="decimal"></label>
       <label class="f" for="gMaxO">Maks toplam oran<input id="gMaxO" type="text" inputmode="decimal"></label></div>
     <div class="row"><label class="f" for="gMinP">Seçim olasılığı min %<input id="gMinP" type="text" inputmode="decimal"></label>
@@ -858,13 +867,13 @@ p { margin: 0; }
     var days = Array.from(new Set(wkItems.map(function (x) { return x.date; }))).sort(), dsel = $("gDay"); dsel.textContent = "";
     dsel.appendChild(h("option", { value: "all", text: "Tüm günler" })); days.forEach(function (d) { dsel.appendChild(h("option", { value: d, text: dayLabel(d) })); });
     var gl = $("gLeagues"); gl.textContent = "";
+    gl.appendChild(h("button", { type: "button", class: "clr", text: "Tüm ligler (seçimi temizle)", onclick: function () { gl.querySelectorAll("input").forEach(function (i) { i.checked = false; }); updateLigNote(); } }));
     Array.from(new Set(wkItems.map(function (x) { return x.division; }))).sort(function (a, b) { return ligRank(a) - ligRank(b); }).forEach(function (code) {
-      gl.appendChild(h("button", { class: "lchip", type: "button", "aria-pressed": "false", "data-v": code, text: ligName(code) }));
+      var cb = h("input", { type: "checkbox", "data-v": code }); cb.addEventListener("change", updateLigNote);
+      gl.appendChild(h("label", { class: "ck", "data-v": code }, [h("span", {}, [cb, h("span", { class: "nm", text: ligName(code) })]), h("span", { class: "n num", style: "color:var(--muted);font-size:12px" })]));
     });
-    gl.addEventListener("click", function (e) {
-      var b2 = e.target.closest("button"); if (!b2 || b2.disabled) return;
-      b2.setAttribute("aria-pressed", b2.getAttribute("aria-pressed") === "true" ? "false" : "true"); updateLigNote();
-    });
+    $("gLigBtn").addEventListener("click", function () { var open = gl.hidden; gl.hidden = !open; this.setAttribute("aria-expanded", open ? "true" : "false"); });
+    document.addEventListener("click", function (e) { if (!gl.hidden && !e.target.closest(".ligsel")) { gl.hidden = true; $("gLigBtn").setAttribute("aria-expanded", "false"); } });
     dsel.addEventListener("change", updateGenLeagues); updateGenLeagues();
     function preset(name) { var p = PRESETS[name]; $("gMinP").value = p.minP; $("gMaxP").value = p.maxP; $("gMinO").value = p.minO; $("gMaxO").value = p.maxO; $("gLegs").value = p.legs; }
     preset("dengeli");
@@ -878,15 +887,18 @@ p { margin: 0; }
       computeAllB(function () { btn.disabled = false; runGenerator(); });
     });
   }
-  function selectedGenLeagues() { return Array.from($("gLeagues").querySelectorAll("button")).filter(function (b) { return b.getAttribute("aria-pressed") === "true"; }).map(function (b) { return b.dataset.v; }); }
-  function updateLigNote() { var n = selectedGenLeagues().length; $("gLigNote").textContent = n ? "(" + n + " lig seçili)" : "(seçmezseniz tüm ligler)"; }
+  function selectedGenLeagues() { return Array.from($("gLeagues").querySelectorAll("input")).filter(function (i) { return i.checked; }).map(function (i) { return i.dataset.v; }); }
+  function updateLigNote() {
+    var sel = selectedGenLeagues(), t = !sel.length ? "Tüm ligler" : sel.length === 1 ? ligName(sel[0]) : sel.length <= 2 ? sel.map(ligName).join(", ") : sel.length + " lig seçili";
+    $("gLigTxt").textContent = t;
+  }
   /* gün seçimine göre her ligin maç sayısını güncelle; maçı olmayan lig seçilemez */
   function updateGenLeagues() {
     var day = $("gDay").value, cnt = {};
     wkItems.forEach(function (x) { if (day === "all" || x.date === day) cnt[x.division] = (cnt[x.division] || 0) + 1; });
-    $("gLeagues").querySelectorAll("button").forEach(function (b) {
-      var n = cnt[b.dataset.v] || 0; b.textContent = ligName(b.dataset.v) + " " + n; b.disabled = n === 0;
-      if (n === 0) b.setAttribute("aria-pressed", "false");
+    $("gLeagues").querySelectorAll("label.ck").forEach(function (l) {
+      var n = cnt[l.dataset.v] || 0, inp = l.querySelector("input"); l.querySelector(".n").textContent = n + " maç"; inp.disabled = n === 0; l.classList.toggle("off", n === 0);
+      if (n === 0) inp.checked = false;
     });
     updateLigNote();
   }
