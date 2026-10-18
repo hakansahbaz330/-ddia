@@ -1,5 +1,13 @@
 # Canlı fikstür/oran ve otomatik maç analizi
 
+## Yalnızca arşivdeki ligler
+Bültenden yalnızca arşivdeki liglere ait maçlar uygulamaya alınır (`app/providers/iddaa_leagues.py`: bülten kodu -> arşiv lig kodu). Diğerleri sayılarıyla raporlanır
+(`excluded_leagues`). Eşleme, her kodun takımlarının arşivdeki lige ait **güncel sezon** takımlarıyla eşleşme oranına bakılarak doğrulanır:
+`node mobile/check_leagues.mjs <veri.bin.gz> mobile/weekly.json` (şüpheli kod <%70). Örnek: `İFAK` FA Kupası çıktı (alt lig takımları) ve alınmadı.
+Bülten kodu yeni bir lige aitse ve arşivde varsa `IDDAA_TO_ARCHIVE` tablosuna ekleyin. Belçika (B1) ve Portekiz (P1) bu bültende görülmedi.
+**Arşiv güncelliği:** Arşiv 17 Eylül 2026'da bitiyorsa, sonrasındaki maçlar (form, puan durumu) yoktur. Güncel Football-Data dosyasını içe aktarıp
+`mobile/build.py` ile yeniden derleyin (README > Arşivi içe aktarma).
+
 ## Haftalık bülten PDF'i (güncel yöntem)
 Resmi iddaa/Nesine haftalık bülten PDF'i (metin katmanlı) `backend/app/providers/iddaa_pdf.py` ile okunur: sütunlar başlık satırının x-konumlarına göre
 eşlenir, her maç dikey olarak en yakın satıra atanır. Yalnızca futbol alınır; 1X2'nin tamamı olmayan maçlar (bir seçenek "-" ise) atlanır.

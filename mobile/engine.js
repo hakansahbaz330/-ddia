@@ -292,10 +292,14 @@
     for (var i = 0; i < D.n; i++) { last[D.home[i]] = D.div[i]; last[D.away[i]] = D.div[i]; }
     D._tn = { T: T, last: last }; return D._tn;
   }
-  var RESERVE = /\bu(?:17|18|19|20|21|23)\b|\bjong\b|\bii\b|\biii\b|\([kwf]\)|\bkadin\b/i;
+  /* Türkçe bülten yazımı -> arşiv adı (normalize edilmiş). Yalnızca doğrulanmış eşleşmeler. */
+  var ALIAS = { "p thistle": "partick", "wolverhampton": "wolves", "mk dons": "milton keynes dons", "amed sportif faaliyetler": "amedspor", "queens park rangers": "qpr",
+    "manchester city": "man city", "manchester united": "man united", "psv": "psv eindhoven", "airdrieonian": "airdrie utd", "marsilya": "marseille", "basaksehir": "buyuksehyr",
+    "ayr united": "ayr", "nottingham forest": "nott'm forest" };
+  var RESERVE = /\bu(?:17|18|19|20|21|23)\b|\bjong\b|(?<!willem )\bii\b|\biii\b|\([kwf]\)|\bkadin\b/i;
   function matchTeam(D, name) {
     if (RESERVE.test(name)) return -1; /* yedek/genç/kadın takımları birinci takımla karıştırılmaz */
-    var tn = teamIndex(D), n = normName(name), best = -1, br = 0;
+    var tn = teamIndex(D), n = normName(name), best = -1, br = 0; n = ALIAS[n] ? normName(ALIAS[n]) : n;
     for (var k = 0; k < tn.T.length; k++) {
       var t = tn.T[k], r = t.n === n ? 1 : dice(n, t.n);
       if ((n.length >= 4 && t.n.length >= 4) && (t.n.indexOf(n) > -1 || n.indexOf(t.n) > -1)) r = Math.max(r, 0.9);
@@ -321,7 +325,7 @@
   }
   function matchTeamIn(D, name, divIdx) {
     if (RESERVE.test(name)) return -1;
-    var tn = teamIndex(D), n = normName(name), best = -1, b1 = 0, b2 = 0;
+    var tn = teamIndex(D), n = normName(name), best = -1, b1 = 0, b2 = 0; n = ALIAS[n] ? normName(ALIAS[n]) : n;
     divTeams(D)[divIdx].forEach(function (k) {
       var r = scoreName(n, tn.T[k].n);
       if (r > b1) { b2 = b1; b1 = r; best = k; } else if (r > b2) b2 = r;
@@ -457,6 +461,85 @@
   }
   function nf1(x) { return x.toFixed(1).replace(".", ","); }
 
+
+  /* ================= Lig bağlamı: puan durumu ve genel oranlar (arşivden) ================= */
+  function standings(D, divIdx, seasonIdx) {
+    var t = {}, i;
+    for (i = 0; i < D.n; i++) {
+      if (D.div[i] !== divIdx || D.season[i] !== seasonIdx || D.fth[i] === MISS) continue;
+      var h = D.home[i], a = D.away[i], gh = D.fth[i], ga = D.fta[i];
+      [[h, gh, ga], [a, ga, gh]].forEach(function (x) {
+        var r = t[x[0]] = t[x[0]] || { team: x[0], p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 };
+        r.p++; r.gf += x[1]; r.ga += x[2];
+        if (x[1] > x[2]) { r.w++; r.pts += 3; } else if (x[1] === x[2]) { r.d++; r.pts += 1; } else r.l++;
+      });
+    }
+    var rows = Object.keys(t).map(function (k) { return t[k]; });
+    rows.sort(function (x, y) { return y.pts - x.pts || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf; });
+    rows.forEach(function (r, k) { r.rank = k + 1; });
+    return rows;
+  }
+  function leagueContext(D, divIdx, seasonMin) {
+    var n = 0, h = 0, d = 0, a = 0, g = 0, bt = 0, o = 0;
+    for (var i = 0; i < D.n; i++) {
+      if (D.div[i] !== divIdx || D.season[i] < seasonMin || D.fth[i] === MISS) continue;
+      n++; var x = D.fth[i], y = D.fta[i];
+      if (x > y) h++; else if (x === y) d++; else a++;
+      g += x + y; if (x > 0 && y > 0) bt++; if (x + y > 2) o++;
+    }
+    return n ? { n: n, home: h / n, draw: d / n, away: a / n, goals: g / n, btts: bt / n, o25: o / n } : { n: 0 };
+  }
+  function lastDate(D, team) {
+    for (var i = D.n - 1; i >= 0; i--) if (D.home[i] === team || D.away[i] === team) return D.day[i];
+    return null;
+  }
+
+  /* ================= Otomatik kupon (Faz 7) ================= */
+  /* cand: [{mi, match, league, group, label, odds, p, time, date}] */
+  function buildCoupons(cands, o) {
+    var k = o.legs, lo = o.minOdds, hi = o.maxOdds, minP = o.minP, maxP = o.maxP === undefined ? 1 : o.maxP;
+    var perLeague = o.perLeague || 99, nOut = o.count || 3, maxShared = o.maxShared === undefined ? Math.max(0, k - 2) : o.maxShared;
+    var pool = cands.filter(function (c) { return c.p >= minP && c.p <= maxP && c.odds >= (o.minLegOdds || 1.01) && (!o.groups || o.groups.indexOf(c.group) > -1); });
+    var byMatch = {}; pool.forEach(function (c) { (byMatch[c.mi] = byMatch[c.mi] || []).push(c); });
+    var ms = Object.keys(byMatch).map(function (m) {
+      var arr = byMatch[m].sort(function (a, b) { return b.p - a.p; }).slice(0, 6); return { mi: +m, c: arr };
+    });
+    /* her bölmede (adet, log-oran kovası) en iyi birkaç kısmi kupon; hedef: ortak olasılık */
+    var step = 0.12, states = [{ legs: [], lp: 0, lo: 0, lg: {} }], levels = {};
+    function key(s) { return s.legs.length + ":" + Math.round(s.lo / step); }
+    var buckets = {}; buckets[key(states[0])] = [states[0]];
+    ms.sort(function (a, b) { return Math.max.apply(null, b.c.map(function (x) { return x.p; })) - Math.max.apply(null, a.c.map(function (x) { return x.p; })); });
+    ms.forEach(function (m) {
+      var add = [];
+      Object.keys(buckets).forEach(function (kk) {
+        buckets[kk].forEach(function (s) {
+          if (s.legs.length >= k) return;
+          m.c.forEach(function (c) {
+            if ((s.lg[c.league] || 0) >= perLeague) return;
+            var lg = Object.assign({}, s.lg); lg[c.league] = (lg[c.league] || 0) + 1;
+            add.push({ legs: s.legs.concat([c]), lp: s.lp + Math.log(c.p), lo: s.lo + Math.log(c.odds), lg: lg });
+          });
+        });
+      });
+      add.forEach(function (s) {
+        var kk = key(s), b = buckets[kk] = buckets[kk] || [];
+        b.push(s); b.sort(function (x, y) { return y.lp - x.lp; }); if (b.length > 4) b.length = 4;
+      });
+    });
+    var finals = [];
+    Object.keys(buckets).forEach(function (kk) { buckets[kk].forEach(function (s) { if (s.legs.length === k) { var t = Math.exp(s.lo); if (t >= lo && t <= hi) finals.push(s); } }); });
+    finals.sort(function (a, b) { return b.lp - a.lp; });
+    var out = [];
+    finals.forEach(function (s) {
+      if (out.length >= nOut) return;
+      var ids = s.legs.map(function (c) { return c.mi + "|" + c.label; });
+      var ok = out.every(function (t) { var shared = 0; t.legs.forEach(function (c) { if (ids.indexOf(c.mi + "|" + c.label) > -1) shared++; }); return shared <= maxShared; });
+      if (ok) out.push({ legs: s.legs.slice().sort(function (a, b) { return (a.date + a.time) < (b.date + b.time) ? -1 : 1; }), p: Math.exp(s.lp), odds: Math.exp(s.lo) });
+    });
+    out.forEach(function (c) { c.ev = c.p * c.odds - 1; c.leagues = {}; c.legs.forEach(function (l) { c.leagues[l.league] = (c.leagues[l.league] || 0) + 1; }); });
+    return { coupons: out, poolSize: pool.length, matchesInPool: ms.length, feasible: finals.length };
+  }
+
   /* ================= Tek maç otomatik analizi ================= */
   function strengthLambdas(D, h, a) {
     var S = D.meta.strength; if (!S || h < 0 || a < 0) return null;
@@ -489,6 +572,6 @@
   }
 
   root.Engine = { decode: decode, devig: devig, wilson: wilson, scopeIdx: scopeIdx, rankSimilar: rankSimilar, summarize: summarize, analyze: analyze, dayToDate: dayToDate, MISS: MISS, fitFromMarket: fitFromMarket, scoreMatrix: scoreMatrix, marketProbs: marketProbs, topScores: topScores,
-    matchTeamIn: matchTeamIn, learnLeagueDivisions: learnLeagueDivisions, halfMarkets: halfMarkets, analyzeBulletinMatch: analyzeBulletinMatch, parseBulletin: parseBulletin, matchTeam: matchTeam, teamForm: teamForm, h2h: h2h, analyzeMatch: analyzeMatch, normName: normName };
+    matchTeamIn: matchTeamIn, standings: standings, leagueContext: leagueContext, lastDate: lastDate, buildCoupons: buildCoupons, learnLeagueDivisions: learnLeagueDivisions, halfMarkets: halfMarkets, analyzeBulletinMatch: analyzeBulletinMatch, parseBulletin: parseBulletin, matchTeam: matchTeam, teamForm: teamForm, h2h: h2h, analyzeMatch: analyzeMatch, normName: normName };
   if (typeof module !== "undefined") module.exports = root.Engine;
 })(typeof window !== "undefined" ? window : globalThis);

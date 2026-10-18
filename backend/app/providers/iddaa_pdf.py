@@ -119,11 +119,20 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("pdf", type=Path)
     ap.add_argument("--year", type=int, default=date.today().year)
     ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--all-leagues", action="store_true", help="Arşivde olmayan ligleri de tut (varsayılan: yalnızca arşivdeki ligler)")
     a = ap.parse_args(argv)
     r = parse_pdf(a.pdf, a.year)
     r["source"] = a.pdf.name
+    r["parsed_total"] = len(r["matches"])
+    if not a.all_leagues:
+        from app.providers.iddaa_leagues import filter_archive_leagues
+
+        r["matches"], r["excluded_leagues"] = filter_archive_leagues(r["matches"])
+        r["excluded_total"] = sum(r["excluded_leagues"].values())
     a.out.write_text(json.dumps(r, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    print(f"{len(r['matches'])} futbol maçı, günler {r['days']}, atlanan satır {r['skipped_rows']} -> {a.out}")
+    print(f"{len(r['matches'])} maç tutuldu (bültende {r['parsed_total']} futbol maçı), atlanan satır {r['skipped_rows']} -> {a.out}")
+    if not a.all_leagues:
+        print("Arşivde olmadığı için çıkarılan lig kodları:", ", ".join(f"{k}({v})" for k, v in list(r["excluded_leagues"].items())[:40]))
     return 0
 
 

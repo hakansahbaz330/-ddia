@@ -76,3 +76,13 @@ def test_real_pdf_parses_with_consistent_margins():
     first = r["matches"][0]
     assert (first["home"], first["away"], first["time"]) == ("PSİM YOGYAKARTA", "PSM MAKASSAR", "11:30")
     assert first["odds"]["ms1"] == 1.98 and first["odds"]["kg_var"] == 1.57
+
+
+def test_league_filter_keeps_only_archive_leagues():
+    from app.providers.iddaa_leagues import ARCHIVE_DIVISIONS, IDDAA_TO_ARCHIVE, filter_archive_leagues
+
+    assert set(IDDAA_TO_ARCHIVE.values()) <= set(ARCHIVE_DIVISIONS)
+    ms = [{"league": "İTSA"}, {"league": "ENDO"}, {"league": "İSPP"}, {"league": "SÜPL"}, {"league": "ENDO"}]
+    kept, excl = filter_archive_leagues(ms)
+    assert [m["division"] for m in kept] == ["I1", "T1"]
+    assert excl == {"ENDO": 2, "İSPP": 1}

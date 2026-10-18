@@ -60,3 +60,6 @@ Benzerlik yöntemi ve sınırları uygulamanın "Bilgi" sekmesinde ve `backend/a
 
 ## Haftalık bülten PDF'i
 Bülten PDF'ini okuyup uygulamaya gömmek için: docs/live-data.md > "Haftalık bülten PDF'i". Parite testleri: `node mobile/test_bulletin_parity.mjs`.
+
+## Testler (özet)
+`cd backend && python -m pytest -q` (43+ test) · `node mobile/test_parity.mjs <klasör>` · `node mobile/test_bulletin_parity.mjs <ref.json>` · `node mobile/test_coupon.mjs` · `node mobile/check_leagues.mjs <veri.bin.gz> mobile/weekly.json`

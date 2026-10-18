@@ -6,8 +6,11 @@ import sys
 from app.models.bulletin_model import analyze_bulletin_match
 
 W = json.load(open(sys.argv[1]))["matches"]
-picks = [next(m for m in W if len(m["odds"]) >= 39), next(m for m in W if 20 <= len(m["odds"]) < 39), next(m for m in W if len(m["odds"]) == 15),
-         next(m for m in W if len(m["odds"]) <= 10)]
+def pick(lo, hi):
+    return next((m for m in W if lo <= len(m["odds"]) <= hi), None)
+
+
+picks = [m for m in (pick(39, 99), pick(20, 38), pick(11, 19), pick(3, 10)) if m]
 out = []
 for m in picks:
     r = analyze_bulletin_match(m["odds"])
