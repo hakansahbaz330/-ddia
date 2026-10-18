@@ -119,6 +119,11 @@ input.odds { font-family: var(--f-mono); font-size: 20px; text-align: center; fo
 .cmp .win { color: var(--accent); font-weight: 600; }
 .mlink { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; width: 100%; }
 .mlink b { font-family: var(--f-display); font-size: 16px; }
+.wkrow { display: grid; grid-template-columns: 44px 1fr auto; gap: 8px; align-items: center; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--line); padding: 9px 0; cursor: pointer; width: 100%; min-height: 48px; }
+.wkrow .wkt { font-size: 12px; color: var(--muted); }
+.wkrow .wkn { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.wkrow .wkn small { font-size: 11px; color: var(--muted); }
+.wkrow .wko { font-size: 12px; text-align: right; white-space: nowrap; }
 .tabbar button { flex: 1; min-height: 58px; min-width: 0; border: 0; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
 .tabbar svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .tabbar button[aria-selected=true] { color: var(--accent); font-weight: 600; }
@@ -139,8 +144,16 @@ p { margin: 0; }
 <main>
 <section class="tab on" id="tab-bulten" data-tab="bulten">
   <div id="bulHome" style="display:flex;flex-direction:column;gap:14px">
+    <div class="card" id="wkCard" hidden>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 id="wkTitle">Haftalık bülten</h2><span class="tag" id="wkCount"></span></div>
+      <p class="hint" id="wkSub"></p>
+      <div class="seg" id="wkDays" role="group" aria-label="Gün"></div>
+      <label class="f" for="wkQ">Ara (takım veya lig kodu)<input id="wkQ" type="text" placeholder="örn. Galatasaray, İTSA" autocomplete="off"></label>
+      <div id="wkList" class="mlist"></div>
+      <button class="btn alt sm" id="wkMore" hidden></button>
+    </div>
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Bülten</h2><span class="tag" id="bulTag">örnek satırlar</span></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Başka bülten yapıştır</h2><span class="tag" id="bulTag">örnek satırlar</span></div>
       <p class="hint">Bahisçi bülteninden maç satırlarını kopyalayıp yapıştırın. Her satır: Ev - Deplasman 1 X 2, isteğe bağlı 2,5 Üst ve 2,5 Alt. Saat ve lig başlıkları yok sayılır.</p>
       <label class="f" for="bul">Maç satırları<textarea id="bul" rows="7" spellcheck="false" autocomplete="off"></textarea></label>
       <div class="row"><button class="btn" id="bulGo">Maçları ayrıştır</button><button class="btn alt" id="bulFile" type="button">Dosyadan yükle</button></div>
@@ -576,8 +589,65 @@ p { margin: 0; }
     });
   }
 
+
+  /* ---------- haftalık bülten (PDF'ten) ---------- */
+  var wkDay = null, wkShown = 60, wkItems = [];
+  var DAYN = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"], MON = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+  function dayLabel(d) { var x = new Date(d + "T00:00:00Z"); return x.getUTCDate() + " " + MON[x.getUTCMonth()] + " " + DAYN[x.getUTCDay()]; }
+  function nOdds(o) { return Object.keys(o).length; }
+  function initWeekly() {
+    if (!WKPDF || !WKPDF.matches || !WKPDF.matches.length) return;
+    wkItems = WKPDF.matches.map(function (m) {
+      var o = m.odds;
+      return { home: m.home, away: m.away, odds: [o.ms1, o.ms0, o.ms2], ou: o.ou25_ust && o.ou25_alt ? [o.ou25_ust, o.ou25_alt] : null, full: o, date: m.date, time: m.time, league: m.league, hIdx: undefined, aIdx: undefined };
+    });
+    var days = Array.from(new Set(wkItems.map(function (x) { return x.date; }))).sort();
+    wkDay = days[0];
+    $("wkCard").hidden = false;
+    $("wkTitle").textContent = "Haftalık bülten · " + dayLabel(days[0]) + (days.length > 1 ? " – " + dayLabel(days[days.length - 1]) : "");
+    $("wkCount").textContent = wkItems.length + " futbol maçı";
+    $("wkSub").textContent = (WKPDF.source || "PDF") + " dosyasından okundu. Her maçta bülteni oluşturan tüm pazarların oranları var (KG, 2,5/3,5, ilk yarı, İY/MS, toplam gol). Maça dokunun.";
+    var seg2 = $("wkDays"); days.forEach(function (d) {
+      var n = wkItems.filter(function (x) { return x.date === d; }).length;
+      seg2.appendChild(h("button", { "aria-pressed": d === wkDay ? "true" : "false", "data-v": d, text: dayLabel(d) + " (" + n + ")" }));
+    });
+    seg2.addEventListener("click", function (e) {
+      var b2 = e.target.closest("button"); if (!b2) return; wkDay = b2.dataset.v; wkShown = 60;
+      seg2.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", x === b2 ? "true" : "false"); }); drawWeekly();
+    });
+    $("wkQ").addEventListener("input", function () { wkShown = 60; drawWeekly(); });
+    $("wkMore").addEventListener("click", function () { wkShown += 80; drawWeekly(); });
+    drawWeekly();
+    setTimeout(function () { try { wkDivMap = E.learnLeagueDivisions(D, wkItems); } catch (e) { wkDivMap = {}; } }, 60);
+  }
+  var wkDivMap = {};
+  function resolveTeams(it) {
+    it.hIdx = E.matchTeam(D, it.home); it.aIdx = E.matchTeam(D, it.away);
+    var dv = it.league !== undefined && wkDivMap[it.league];
+    if (dv !== undefined && dv !== false) {
+      if (it.hIdx < 0) it.hIdx = E.matchTeamIn(D, it.home, dv);
+      if (it.aIdx < 0) it.aIdx = E.matchTeamIn(D, it.away, dv);
+    }
+  }
+  function drawWeekly() {
+    var q = E.normName($("wkQ").value || ""), list = $("wkList"); list.textContent = "";
+    var rows = wkItems.filter(function (x) {
+      if (q) return E.normName(x.home + " " + x.away + " " + x.league).indexOf(q) > -1;
+      return x.date === wkDay;
+    }).sort(function (a, b) { return (a.date + a.time) < (b.date + b.time) ? -1 : 1; });
+    rows.slice(0, wkShown).forEach(function (x) {
+      list.appendChild(h("button", { class: "wkrow", onclick: function () { bulItems = wkItems; openDetail(wkItems.indexOf(x)); } }, [
+        h("span", { class: "wkt num", text: (q ? dayLabel(x.date).slice(0, 6) + " " : "") + x.time }),
+        h("span", { class: "wkn" }, [h("b", { text: x.home + " – " + x.away }), h("small", { text: x.league + " · " + nOdds(x.full) + " oran" })]),
+        h("span", { class: "wko num", text: nf(x.odds[0], 2) + " " + nf(x.odds[1], 2) + " " + nf(x.odds[2], 2) })]));
+    });
+    if (!rows.length) list.appendChild(h("p", { class: "hint", text: "Bu günde eşleşen maç yok." }));
+    $("wkMore").hidden = rows.length <= wkShown; $("wkMore").textContent = "Daha fazla göster (" + Math.min(wkShown, rows.length) + "/" + rows.length + ")";
+  }
+
   /* ---------- bülten ve otomatik maç analizi ---------- */
   var WEEKLY = __WEEKLY__;
+  var WKPDF = __WKPDF__;
   var EXAMPLE = "Galatasaray - Fenerbahce 2,45 3,40 2,80 1,80 2,00\nArsenal - Chelsea 1,70 4,00 5,00 1,75 2,05\nBayern Munich - Dortmund 1,55 4,50 5,50 1,45 2,65\nReal Madrid - Barcelona 2,30 3,60 2,95";
   var bulItems = [];
   function showBulList() { $("bulDetail").style.display = "none"; $("bulHome").style.display = "flex"; window.scrollTo(0, 0); }
@@ -634,7 +704,9 @@ p { margin: 0; }
     var it = bulItems[k], root = $("bulDetail");
     function render() {
       root.textContent = "";
-      var q = { odds: it.odds, ou: it.ou }, R = E.analyzeMatch(D, q, it.hIdx, it.aIdx);
+      if (it.hIdx === undefined) resolveTeams(it);
+      var q = { odds: it.odds, ou: it.ou }, B = it.full ? (it._B = it._B || E.analyzeBulletinMatch(it.full)) : null;
+      var R = E.analyzeMatch(D, q, it.hIdx, it.aIdx, B ? { lh: B.lh, la: B.la, rmse: B.rmse } : undefined);
       var title = h("div", { class: "card" }, [
         h("button", { class: "btn alt sm", style: "align-self:flex-start", text: "← Bültene dön", onclick: showBulList }),
         h("h2", { text: it.home + " – " + it.away }),
@@ -666,6 +738,13 @@ p { margin: 0; }
       var pk = h("div", { class: "pair" }); pk.appendChild(modelCell("KG var", C.btts_yes)); pk.appendChild(modelCell("KG yok", 1 - C.btts_yes)); mc.appendChild(pk);
       mc.appendChild(h("div", { class: "hint", text: "İlk yarı (yaklaşık, sabit gol payı %44,4): İY 1 " + pct(R.half.ht_1, 0) + " · X " + pct(R.half.ht_x, 0) + " · 2 " + pct(R.half.ht_2, 0) + " · İY 1,5 üst " + pct(R.half.ht_o15, 0) + " · İY KG " + pct(R.half.ht_btts, 0) }));
       root.appendChild(mc);
+      if (B) {
+        var hc2 = h("div", { class: "card" }, [h("h2", { text: "İlk yarı ve İY/MS" }), h("p", { class: "hint", text: "İlk yarı modeli: " + B.htSource + ". Beklenen İY golü " + nf(B.htLh, 2) + " / " + nf(B.htLa, 2) + "." })]);
+        var chh = h("div", { class: "chips" }); B.htTop.forEach(function (t) { chh.appendChild(h("span", { class: "chip" }, ["İY " + t.score + " ", h("small", { text: pct(t.p, 0) })])); }); hc2.appendChild(chh);
+        var gg = h("div", { class: "grid3" }, [h("span"), h("span", { class: "h", text: "MS 1" }), h("span", { class: "h", text: "MS 0" }), h("span", { class: "h", text: "MS 2" })]);
+        ["1", "0", "2"].forEach(function (a2) { gg.appendChild(h("span", { class: "h", text: "İY " + a2 })); ["1", "0", "2"].forEach(function (b2) { var v = B.htft[a2 + b2]; gg.appendChild(h("span", { class: "c", style: "--a:" + Math.min(100, v * 260), text: pct(v, 0) })); }); });
+        hc2.appendChild(gg); hc2.appendChild(h("div", { class: "hint", text: "Model: İY ve 2. yarı golleri bağımsız Poisson." })); root.appendChild(hc2);
+      }
 
       var md = h("div", { class: "card" }, [h("h2", { text: "Model karşılaştırması" })]);
       var rows = [["1", "1"], ["X", "X"], ["2", "2"], ["2,5 üst", "over_2_5"], ["KG var", "btts_yes"]];
@@ -713,6 +792,16 @@ p { margin: 0; }
         R.h2h.forEach(function (i2) { hl.appendChild(matchRow(i2)); }); hc.appendChild(hl); root.appendChild(hc);
       } else if (it.hIdx >= 0 && it.aIdx >= 0) root.appendChild(h("div", { class: "card" }, [h("h2", { text: "Karşılıklı geçmiş" }), h("p", { class: "hint", text: "Arşivde bu iki takımın maçı yok." })]));
 
+      if (B) {
+        var bt = h("div", { class: "card" }, [h("h2", { text: "Bülten pazarları" }), h("p", { class: "hint", text: "Bahisçi oranı, kendi pazarında marjdan arındırılmış olasılık, model olasılığı (" + B.nTargets + " pazara uydurulmuş) ve EV = model p × oran − 1. Uyum hatası " + nf(B.rmse * 100, 2) + " puan." })]);
+        var grp = null, tbl = null;
+        B.markets.forEach(function (r) {
+          if (r.group !== grp) { grp = r.group; bt.appendChild(h("h3", { text: grp })); tbl = h("tbody"); bt.appendChild(h("div", { class: "tbl" }, [h("table", {}, [h("thead", {}, [h("tr", {}, ["", "Oran", "Bahisçi p", "Model p", "EV"].map(function (x) { return h("th", { text: x }); }))]), tbl])])); }
+          tbl.appendChild(h("tr", {}, [r.label, nf(r.odds, 2), r.implied === null ? "–" : pct(r.implied), pct(r.model), (r.ev >= 0 ? "+" : "−") + pct(Math.abs(r.ev))].map(function (x) { return h("td", { text: x }); })));
+        });
+        bt.appendChild(h("div", { class: "hint", text: "Model aynı bahisçinin oranlarından türediği için EV yaklaşık −marj çıkar (bu bültende tüm pazarlarda ≈ %17,5; İY/MS ve MS+2,5 pazarlarında daha yüksek). Pozitif bir değer, doğrulanmamış bir avantaj değil, pazarlar arası küçük tutarsızlıktır; gerçekleşmiş kâr değildir." }));
+        root.appendChild(bt); return;
+      }
       var ev = h("div", { class: "card" }, [h("h2", { text: "Teorik beklenen değer" })]), evb = h("tbody");
       var offered = [["1", it.odds[0], C["1"]], ["X", it.odds[1], C.X], ["2", it.odds[2], C["2"]]];
       if (it.ou) { offered.push(["2,5 üst", it.ou[0], C.over_2_5]); offered.push(["2,5 alt", it.ou[1], 1 - C.over_2_5]); }
@@ -774,7 +863,7 @@ p { margin: 0; }
     if (typeof DecompressionStream === "undefined") { $("stat").textContent = "Tarayıcı bu veriyi açamıyor (güncel Chrome/Safari gerekir)."; return; }
     var bytes = b64ToBytes($("blob").textContent.trim());
     new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer().then(function (buf) {
-      D = E.decode(buf); fillSelects(); if (WEEKLY.text) { $("bul").value = WEEKLY.text; $("bulTag").textContent = WEEKLY.title || "haftalık bülten"; } else { $("bul").value = EXAMPLE; } parseBul(); analyze(); startInbox();
+      D = E.decode(buf); fillSelects(); initWeekly(); if (WEEKLY.text) { $("bul").value = WEEKLY.text; $("bulTag").textContent = WEEKLY.title || "haftalık bülten"; } else { $("bul").value = EXAMPLE; } parseBul(); analyze(); startInbox();
     }).catch(function (e) { $("stat").textContent = "Arşiv açılamadı: " + e.message; });
   }
   start();

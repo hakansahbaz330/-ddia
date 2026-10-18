@@ -34,7 +34,7 @@ cd backend && uvicorn app.api.main:app --reload --port 8000     # belgeler: http
 
 ## Testler
 ```bash
-cd backend && python -m pytest -q      # 37 test
+cd backend && python -m pytest -q      # 43 test
 ```
 Sonuçlar ve sınırlamalar: [docs/test-report.md](docs/test-report.md).
 
@@ -57,3 +57,6 @@ Benzerlik yöntemi ve sınırları uygulamanın "Bilgi" sekmesinde ve `backend/a
 
 ## Tek dokunuşla bülten
 `uvicorn app.api.main:app` çalışırken `http://localhost:8000/bookmarklet` → yer imini ekleyin → bülten sayfasında tıklayın → `http://localhost:8000/app` Bülten sekmesinde maçlar listelenir. Ayrıntı: docs/live-data.md.
+
+## Haftalık bülten PDF'i
+Bülten PDF'ini okuyup uygulamaya gömmek için: docs/live-data.md > "Haftalık bülten PDF'i". Parite testleri: `node mobile/test_bulletin_parity.mjs`.

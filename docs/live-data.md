@@ -1,5 +1,19 @@
 # Canlı fikstür/oran ve otomatik maç analizi
 
+## Haftalık bülten PDF'i (güncel yöntem)
+Resmi iddaa/Nesine haftalık bülten PDF'i (metin katmanlı) `backend/app/providers/iddaa_pdf.py` ile okunur: sütunlar başlık satırının x-konumlarına göre
+eşlenir, her maç dikey olarak en yakın satıra atanır. Yalnızca futbol alınır; 1X2'nin tamamı olmayan maçlar (bir seçenek "-" ise) atlanır.
+Doğrulama: örnek bültende 861 maç okundu ve her pazarın marjı aynı dar bantta çıktı (1X2/KG/ÜA/İY ≈ %17,5; toplam gol ≈ %20,8; İY/MS ≈ %25,7),
+sütun kayması olsaydı bu tutmazdı (`tests/test_bulletin_model.py`).
+```bash
+cd backend
+PYTHONPATH=. python -m app.providers.iddaa_pdf bulten.pdf --year 2026 --out ../mobile/weekly.json
+PYTHONPATH=. python ../mobile/build.py     # uygulamayı bülten gömülü yeniden üretir
+```
+Model (`app/models/bulletin_model.py`, JS ikizi `mobile/engine.js`): 1X2, 2,5/3,5 ü/a, KG ve toplam gol aralıkları tek (λ ev, λ dep) çiftine uydurulur
+(uyum hatası tipik olarak <1 puan); ilk yarı oranlarından ayrı İY modeli; İY/MS ortak dağılımı. Bülten oranları tek bir Poisson ile tutarlı çıktığı için pazarlar arası
+belirgin tutarsızlık yoktur; model aynı bahisçinin oranlarından türediğinden EV ≈ −marj'dır, avantaj kanıtı değildir.
+
 ## Kaynaklar hakkında net bilgi
 - **Bet365, Nesine, SofaScore:** Bunların herkese açık resmi API'sini bulamadım ve kullanım koşulları otomatik veri çekmeyi kısıtlayabilir.
   Bu nedenle bu sitelerden kazıma (scraping) bağlayıcısı **yazılmadı**. Bu bahisçilerin oranları, lisanslı sağlayıcının döndürdüğü kadarıyla

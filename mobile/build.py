@@ -23,6 +23,8 @@ body = "\n".join(l for l in raw if not l.startswith("#")).strip()
 if raw and raw[0].startswith("# (boş)"):
     title, body = "", ""
 html = html.replace("__WEEKLY__", json.dumps({"title": title, "text": body}, ensure_ascii=False))
+wk = here / "weekly.json"
+html = html.replace("__WKPDF__", wk.read_text(encoding="utf-8").replace("</", "<\\/") if wk.exists() else "null")
 html = html.replace("__BLOB__", base64.b64encode(blob).decode())
 out = here / "dist" / "oran-arsivi.html"
 out.parent.mkdir(exist_ok=True)
