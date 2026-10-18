@@ -577,6 +577,7 @@ p { margin: 0; }
   }
 
   /* ---------- bülten ve otomatik maç analizi ---------- */
+  var WEEKLY = __WEEKLY__;
   var EXAMPLE = "Galatasaray - Fenerbahce 2,45 3,40 2,80 1,80 2,00\nArsenal - Chelsea 1,70 4,00 5,00 1,75 2,05\nBayern Munich - Dortmund 1,55 4,50 5,50 1,45 2,65\nReal Madrid - Barcelona 2,30 3,60 2,95";
   var bulItems = [];
   function showBulList() { $("bulDetail").style.display = "none"; $("bulHome").style.display = "flex"; window.scrollTo(0, 0); }
@@ -773,7 +774,7 @@ p { margin: 0; }
     if (typeof DecompressionStream === "undefined") { $("stat").textContent = "Tarayıcı bu veriyi açamıyor (güncel Chrome/Safari gerekir)."; return; }
     var bytes = b64ToBytes($("blob").textContent.trim());
     new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer().then(function (buf) {
-      D = E.decode(buf); fillSelects(); $("bul").value = EXAMPLE; parseBul(); analyze(); startInbox();
+      D = E.decode(buf); fillSelects(); if (WEEKLY.text) { $("bul").value = WEEKLY.text; $("bulTag").textContent = WEEKLY.title || "haftalık bülten"; } else { $("bul").value = EXAMPLE; } parseBul(); analyze(); startInbox();
     }).catch(function (e) { $("stat").textContent = "Arşiv açılamadı: " + e.message; });
   }
   start();

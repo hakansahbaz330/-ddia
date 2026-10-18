@@ -1,0 +1,1 @@
+# (boş) Haftalık bülteni buraya yapıştırın; ilk satır "# başlık" olabilir. Boşsa uygulama örnek satırlarla açılır.
