@@ -8,7 +8,7 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.schema import Match, OddsHistory, OddsSource, Team, TeamAlias, TeamMatchStat
+from app.schema import Match, match_outcomes, OddsHistory, OddsSource, Team, TeamAlias, TeamMatchStat
 
 
 def dataset_summary(s: Session) -> dict:
@@ -39,12 +39,26 @@ def dataset_summary(s: Session) -> dict:
         "teams": s.scalar(select(func.count(Team.id))) or 0,
         "odds_observations": s.scalar(select(func.count(OddsHistory.id))) or 0,
         "date_range": [str(dmin) if dmin else None, str(dmax) if dmax else None],
+        "outcome_base_rates": outcome_base_rates(s),
         "seasons": by_season, "leagues": leagues, "odds_markets": markets, "team_stat_availability": stats,
         "notes": [
             "Sezon 2026-2027 kısmidir (dosya yalnızca oynanmış maçları içerir).",
             "Kapsanan sezon sayısı: %d (10 yıl değil)." % len(by_season),
         ],
     }
+
+
+def outcome_base_rates(s: Session) -> dict:
+    """Türetilmiş sonuçların arşiv genelindeki gerçekleşme oranı (girdisi olan maçlar üzerinden)."""
+    from app.markets import INT_COLUMNS
+    flags = [c for c in INT_COLUMNS if c.startswith(("ft_over", "ht_over", "sh_over", "corners_over", "cards_over"))
+             or c in ("ft_1", "ft_x", "ft_2", "dc_1x", "dc_12", "dc_x2", "ht_1", "ht_x", "ht_2", "btts_yes", "ht_btts_yes")]
+    cols = []
+    for c in flags:
+        cols += [func.avg(match_outcomes.c[c]), func.count(match_outcomes.c[c])]
+    row = s.execute(select(*cols)).one()
+    return {c: {"rate": round(row[2 * i], 4) if row[2 * i] is not None else None, "n": row[2 * i + 1]}
+            for i, c in enumerate(flags)}
 
 
 def search_matches(s: Session, *, division: str | None = None, season: str | None = None, team: str | None = None,

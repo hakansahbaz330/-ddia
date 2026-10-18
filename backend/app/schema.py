@@ -7,6 +7,8 @@ satırda metin tekrarlanmaz. `odds_history_view` spesifikasyondaki düz görün�
 from datetime import date, datetime, time
 
 from sqlalchemy import (
+    Column,
+    Table,
     JSON,
     Date,
     DateTime,
@@ -208,6 +210,18 @@ class DataQualityLog(Base):
     raw_value: Mapped[str | None] = mapped_column(String(120))
     message: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+def _outcomes_table() -> Table:
+    """Skor/istatistiklerden türetilen gerçekleşen pazar sonuçları (bkz. app/markets.py). NULL = girdi yok."""
+    from app.markets import INT_COLUMNS, TEXT_COLUMNS
+
+    cols = [Column("match_id", Integer, ForeignKey("matches.id", ondelete="CASCADE"), primary_key=True)]
+    cols += [Column(c, SmallInteger) for c in INT_COLUMNS] + [Column(c, String(8)) for c in TEXT_COLUMNS]
+    return Table("match_outcomes", Base.metadata, *cols)
+
+
+match_outcomes = _outcomes_table()
 
 
 ODDS_VIEW_SQL = """

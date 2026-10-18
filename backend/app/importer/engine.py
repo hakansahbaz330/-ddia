@@ -263,7 +263,10 @@ def import_file(
             r.flush_logs()
             session.commit()
             r.sheets.append(sheet_stat)
+        from app.services.outcomes import rebuild_outcomes
+
         report = _build_report(r, name, all_mappings)
+        report["outcomes_built"] = rebuild_outcomes(session, list(session.scalars(select(Match.id).where(Match.import_run_id == run.id))))
         run.status = "ok"
     except UnsupportedFile as exc:
         session.rollback()

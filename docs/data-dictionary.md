@@ -8,6 +8,7 @@
 | `odds_sources` | Oran sütunu sözlüğü: bahisçi, pazar (1X2/OU/AH), seçim, çizgi, tür (pre/closing/unspecified) |
 | `odds_history` | (maç, kaynak, oran, import çalışması) — spec'teki düz görünüm: `odds_history_view` |
 | `team_match_stats` | Takım başına: şut, isabetli şut, faul, korner, sarı/kırmızı, serbest vuruş, xG (olanlar) |
+| `match_outcomes` | Maç başına ~110 türetilmiş sonuç sütunu (0/1, girdi yoksa NULL): ft_*/ht_*/sh_* (tam maç, ilk yarı, ikinci yarı), `*_over_X_Y` üst çizgileri (alt = 1 − üst), `btts_yes`, `htft`, `exact_score`, korner/kart. Tanımlar: `backend/app/markets.py`. Yeniden üretim: `rebuild_outcomes()` |
 | `team_strength_history`, `predictions`, `backtest_runs`, `coupons` | Şema hazır; Faz 4–7'de doldurulacak (şu an boş) |
 | `data_quality_logs` | Satır bazlı uyarı/hata örnekleri |
 

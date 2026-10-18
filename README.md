@@ -33,7 +33,7 @@ cd backend && uvicorn app.api.main:app --reload --port 8000     # belgeler: http
 
 ## Testler
 ```bash
-cd backend && python -m pytest -q      # 19 test
+cd backend && python -m pytest -q      # 23 test
 ```
 Sonuçlar ve sınırlamalar: [docs/test-report.md](docs/test-report.md).
 
