@@ -15,7 +15,8 @@
 2. Bülten sayfasını tarayıcıdan "Farklı kaydet" ile .html kaydedip uygulamaya yükle (etiketler soyulur, site'ye özgü seçici yoktur, tarayıcıda okunur).
 3. .txt/.csv dosyası.
 4. Lisanslı API (The Odds API) ile otomatik çekme (aşağıda).
-5. **Tek dokunuş (yer imi + gelen kutusu):** Sunucuyu çalıştırın, `http://localhost:8000/bookmarklet` sayfasındaki bağlantıyı yer imlerine sürükleyin.
+0. **Yalnızca telefon (sunucusuz):** Uygulamadaki Bülten sekmesi > "Telefonda tek dokunuş kurulumu": yer imi kodu telefon tarayıcısında bülten sayfasında çalışır, metni panoya kopyalar; uygulamaya yapıştırınca otomatik ayrıştırılır. Telefonda denenmedi.
+5. **Tek dokunuş (yer imi + gelen kutusu, bilgisayar gerekir):** Sunucuyu çalıştırın, `http://localhost:8000/bookmarklet` sayfasındaki bağlantıyı yer imlerine sürükleyin.
    Kendi tarayıcınızda Nesine/bahisçi bülteni açıkken yer imine tıklayın: sayfada görünen metin sunucuya gönderilir (ve panoya kopyalanır);
    `http://localhost:8000/app` açıkken Bülten sekmesi maçları kendiliğinden listeler. Liste sayfada yüklenmeden (kaydırma gerekebilir) görünmez.
    Yer imi yalnızca sizin açtığınız sayfanın metnini okur; siteye ayrı istek göndermez. Sitelere sunucu tarafından bağlanan kazıyıcı ve bot koruması aşma kodu yazılmadı.

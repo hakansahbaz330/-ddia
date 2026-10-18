@@ -146,6 +146,13 @@ p { margin: 0; }
       <div class="row"><button class="btn" id="bulGo">Maçları ayrıştır</button><button class="btn alt" id="bulFile" type="button">Dosyadan yükle</button></div>
       <input id="bulFileIn" type="file" accept=".txt,.csv,.html,.htm,text/plain,text/html,text/csv" hidden>
       <p class="hint">Dosya: bülten sayfasını tarayıcıdan “Farklı kaydet” ile kaydettiğiniz .html dosyası veya .txt/.csv. Sayfa içeriği tarayıcınızda okunur, hiçbir yere gönderilmez. Çok satırlı kopyalamalar (takımlar ve oranlar alt alta) da okunur.</p>
+      <details id="phoneSetup"><summary>Telefonda tek dokunuş kurulumu (bilgisayarsız)</summary>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+          <p class="hint">Bir kez kurun: aşağıdaki kodu kopyalayıp telefonunuzun tarayıcısında yeni bir yer imine adres olarak yapıştırın (ad: “Bülten al”).</p>
+          <textarea id="bmCode" rows="4" readonly spellcheck="false"></textarea>
+          <button class="btn alt sm" id="bmCopy" type="button" style="align-self:flex-start">Kodu kopyala</button>
+          <p class="hint">Kullanım: tarayıcıda bülten sayfasını açın, maçlar görününce yer imine dokunun (Chrome Android: adres çubuğuna “Bülten al” yazıp yer imini seçin; iPhone Safari: Yer İmleri’nden dokunun). Metin panoya kopyalanır. Buraya dönüp Maç satırları alanına uzun basıp Yapıştır deyin; maçlar kendiliğinden listelenir. Bu yöntem yalnızca açtığınız sayfanın görünen metnini okur, hiçbir sunucuya veri göndermez. Telefonda denenmedi; tarayıcınız yer iminde javascript: kodunu engellerse sayfa metnini elle seçip kopyalayın.</p>
+        </div></details>
       <div id="inboxInfo" class="hint" hidden></div>
       <div id="bulErr"></div>
     </div>
@@ -594,6 +601,12 @@ p { margin: 0; }
   }
   $("bulGo").addEventListener("click", function () { $("bulTag").hidden = true; parseBul(); });
   $("bul").addEventListener("input", function () { $("bulTag").hidden = true; });
+  $("bul").addEventListener("paste", function () { setTimeout(function () { $("bulTag").hidden = true; parseBul(); }, 60); });
+  $("bmCode").value = "javascript:(function(){var t=(document.body.innerText||'').slice(0,300000);var ok=function(){alert('Bülten kopyalandı ('+t.length+' karakter). Oran Arşivi uygulamasına dönüp yapıştırın.')};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok,function(){prompt('Kopyalayın:',t.slice(0,2000))})}else{prompt('Kopyalayın:',t.slice(0,2000))}})();";
+  $("bmCopy").addEventListener("click", function () {
+    var b = $("bmCopy"), done = function (ok) { b.textContent = ok ? "Kopyalandı" : "Kopyalanamadı; metni seçip kopyalayın"; setTimeout(function () { b.textContent = "Kodu kopyala"; }, 2000); };
+    try { navigator.clipboard.writeText($("bmCode").value).then(function () { done(true); }, function () { $("bmCode").select(); done(false); }); } catch (e) { $("bmCode").select(); done(false); }
+  });
   $("bulFile").addEventListener("click", function () { $("bulFileIn").click(); });
   $("bulFileIn").addEventListener("change", function () {
     var f = this.files && this.files[0]; if (!f) return;
