@@ -25,7 +25,6 @@ for (const r of ref) {
   console.log(ok ? "OK  " : "FAIL", r.name, `kapsam=${res.scope_matches}/${r.scope_matches} kullanılan=${res.used}/${r.used} sıraAynı=${same} maxFark=${maxDiff.toExponential(1)}`);
   if (!ok) bad++;
 }
-process.exit(bad ? 1 : 0);
 
 // Piyasa-Poisson: Python (scipy Nelder-Mead) ile aynı beklenen goller ve olasılıklar
 {
@@ -37,3 +36,5 @@ process.exit(bad ? 1 : 0);
   console.log(ok ? "OK  " : "FAIL", "piyasa-poisson", f.lh.toFixed(4), f.la.toFixed(4));
   if (!ok) process.exit(1);
 }
+
+process.exit(bad ? 1 : 0);
