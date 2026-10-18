@@ -68,3 +68,10 @@ def test_api_key_required_when_configured(client, xlsx, monkeypatch):
 
 def test_alias_suggestions(client):
     assert client.get("/api/teams/alias-suggestions").json() == []
+
+
+def test_similar_endpoint_validation(client):
+    r = client.post("/api/similar", json={"odds_1x2": [2.0, 3.4, 0.9]})
+    assert r.status_code == 422
+    r = client.post("/api/similar", json={"odds_1x2": [2.0, 3.4, 3.8], "scope": "league"})
+    assert r.status_code == 409 and "Arşiv boş" in r.json()["detail"]

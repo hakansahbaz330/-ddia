@@ -8,6 +8,7 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
+from pydantic import BaseModel, Field, model_validator
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
@@ -18,6 +19,7 @@ from app.db import get_session
 from app.importer.columns import build_mapping, mapping_summary
 from app.importer.engine import import_file
 from app.importer.readers import UnsupportedFile, iter_sheets
+from app.analysis.similarity import Query as SimQuery, Scope, analyze
 from app.schema import DataQualityLog, ImportRun
 from app.services import dataset
 from app.services.backup import BackupUnsupported, backup_database
@@ -165,3 +167,55 @@ def backup():
         return {"path": str(backup_database())}
     except BackupUnsupported as exc:
         raise HTTPException(501, str(exc)) from exc
+
+
+class SimilarRequest(BaseModel):
+    odds_1x2: tuple[float, float, float]
+    odds_ou25: tuple[float, float] | None = None
+    scope: str = Field("all", pattern="^(all|league|team)$")
+    divisions: list[str] = []
+    team: str | None = None
+    venue: str = Field("any", pattern="^(any|home|away)$")
+    opponent: str | None = None
+    last_seasons: int | None = Field(None, ge=1, le=20)
+    top_n: int = Field(50, ge=1, le=500)
+    min_similarity: float = Field(0, ge=0, le=100)
+    min_sample: int = Field(30, ge=1)
+
+    @model_validator(mode="after")
+    def _odds_valid(self):
+        if any(o <= 1.0 for o in self.odds_1x2) or (self.odds_ou25 and any(o <= 1.0 for o in self.odds_ou25)):
+            raise ValueError("Oranlar 1.00'dan büyük olmalı.")
+        return self
+
+
+_frame_cache: dict = {}
+
+
+def _frame(session: Session):
+    """Özellik tablosu bellekte tutulur; yeni içe aktarma sonrası /api/similar/reload çağrılır."""
+    if "df" not in _frame_cache:
+        from app.analysis.features import load_feature_frame
+        _frame_cache["df"] = load_feature_frame(session)
+    return _frame_cache["df"]
+
+
+@app.post("/api/similar/reload", dependencies=[Depends(require_key)])
+def reload_frame():
+    _frame_cache.clear()
+    return {"ok": True}
+
+
+@app.post("/api/similar")
+def similar(req: SimilarRequest, session: Session = Depends(get_session)):
+    sc = Scope(kind=req.scope, divisions=req.divisions, team=req.team, venue=req.venue, opponent=req.opponent,
+               last_seasons=req.last_seasons)
+    df = _frame(session)
+    if df.empty:
+        _frame_cache.clear()
+        raise HTTPException(409, "Arşiv boş: önce maç dosyalarını içe aktarın.")
+    try:
+        return analyze(df, SimQuery(req.odds_1x2, req.odds_ou25), sc, top_n=req.top_n,
+                       min_sim=req.min_similarity, min_sample=req.min_sample)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc

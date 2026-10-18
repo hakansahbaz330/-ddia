@@ -1,8 +1,8 @@
 # Futbol Analiz, Tahmin ve Kupon Yazılımı
 
 Durum: **Faz 1 + Faz 2 tamamlandı** (ortam/arşiv incelemesi, içe aktarma, temizleme, veritabanı).
-Faz 3–9 (benzer oran arama, modeller, geriye dönük test, API entegrasyonu, kupon, arayüz) **henüz yapılmadı**.
-Arayüz (Next.js) bu sürümde yok; yalnızca FastAPI uç noktaları ve komut satırı var.
+Faz 3 (benzer oran arama) tamamlandı: `backend/app/analysis/`, `POST /api/similar`, ve telefonda çalışan tek dosyalı uygulama `mobile/`.
+Faz 4–9 (Poisson/Elo modelleri, geriye dönük test, canlı API, otomatik kupon, Next.js arayüzü) **henüz yapılmadı**.
 
 ## Kurulum
 ```bash
@@ -33,7 +33,7 @@ cd backend && uvicorn app.api.main:app --reload --port 8000     # belgeler: http
 
 ## Testler
 ```bash
-cd backend && python -m pytest -q      # 23 test
+cd backend && python -m pytest -q      # 31 test
 ```
 Sonuçlar ve sınırlamalar: [docs/test-report.md](docs/test-report.md).
 
@@ -44,3 +44,12 @@ Geri yükleme: API'yi durdurup `restore_database(yol)`. PostgreSQL için `pg_dum
 ## Güvenlik notları
 Sırlar yalnızca `.env`'de (Git'e girmez, `.env.example` şablondur). Yükleme: uzantı beyaz listesi, boyut sınırı,
 dosya adı temizleme, geçici klasör silme. Bahis hesabı/finansal işlem özelliği yoktur ve eklenmeyecektir.
+
+## Mobil uygulama (mobile/)
+Tek HTML dosyası, arşiv içine gömülü (1,3 MB), sunucu gerekmez; telefonda tarayıcıda açılır.
+```bash
+cd backend && PYTHONPATH=. python ../mobile/build.py      # mobile/dist/oran-arsivi.html üretir
+# parite testi (JS motoru = Python motoru):
+PYTHONPATH=. python ../mobile/make_parity_ref.py /tmp/parity && node ../mobile/test_parity.mjs /tmp/parity
+```
+Benzerlik yöntemi ve sınırları uygulamanın "Bilgi" sekmesinde ve `backend/app/analysis/similarity.py` başlığında.
