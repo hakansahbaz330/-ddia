@@ -1,0 +1,14 @@
+# gizli bilgiler ve yerel veri
+.env
+*.sqlite
+*.sqlite3
+*.db
+data/raw/
+data/backups/
+data/uploads/
+__pycache__/
+.pytest_cache/
+node_modules/
+.next/
+.venv/
+*.sqlite-*
