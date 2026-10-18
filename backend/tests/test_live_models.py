@@ -76,3 +76,15 @@ def test_provider_errors_are_readable():
     with pytest.raises(ProviderError) as e:
         OddsApiProvider("k", client=boom).fetch(["soccer_x"])
     assert e.value.code == "network"
+
+
+def test_bulletin_multiline_and_html():
+    multi = "Süper Lig\n20:00\n1234\nGalatasaray - Fenerbahçe\nMS\n2,45\n3,40\n2,80\n1,80\n2,00\nMBS 1\nArsenal - Chelsea\n1,70 4,00 5,00"
+    r = parse_bulletin(multi)
+    assert [(m["home"], m["away"], m["odds_1x2"], m["odds_ou25"]) for m in r["matches"]] == [
+        ("Galatasaray", "Fenerbahçe", [2.45, 3.4, 2.8], [1.8, 2.0]), ("Arsenal", "Chelsea", [1.7, 4.0, 5.0], None)]
+    html = ("<html><body><script>var x=1;</script><table><tr><td>21:00</td><td>Inter - Milan</td><td>2,10</td><td>3,30</td><td>3,40</td></tr>"
+            "<tr><td>Roma &amp; Lazio - X</td><td>1,5</td></tr></table></body></html>")
+    r = parse_bulletin(html)
+    assert [(m["home"], m["away"]) for m in r["matches"]] == [("Inter", "Milan")]
+    assert r["matches"][0]["odds_1x2"] == [2.1, 3.3, 3.4]

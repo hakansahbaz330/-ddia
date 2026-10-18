@@ -224,14 +224,41 @@
   }
 
   /* ================= Bülten ayrıştırma (backend/app/providers/manual.py ile aynı kurallar) ================= */
+  var SEPRE = /\s+(?:-|–|—|vs\.?|v)\s+/i;
+  var DEC = /(?<![\w.,])\d{1,3}[.,]\d{1,2}(?![\w])/g;
+  function htmlToText(src) {
+    src = src.replace(/<(script|style|noscript)\b[\s\S]*?<\/\1>/gi, " ").replace(/<\/t[dh]>/gi, "\t")
+      .replace(/<\/?(?:div|p|br|tr|li|ul|table|section|article|h\d|span|a)\b[^>]*>/gi, "\n").replace(/<[^>]+>/g, " ");
+    return src.replace(/&amp;/g, "&").replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  }
+  function isTeamLine(line) {
+    var m = SEPRE.exec(line); if (!m) return false;
+    return /[^\W\d_]/u.test(line.slice(0, m.index)) && /[^\W\d_]/u.test(line.slice(m.index + m[0].length));
+  }
+  function decs(t) { return t.match(DEC) || []; }
+  function mergeMultiline(lines) {
+    var out = [], i = 0;
+    while (i < lines.length) {
+      var ln = lines[i];
+      if (isTeamLine(ln) && decs(ln).length < 3) {
+        var parts = [ln], j = i + 1;
+        while (j < lines.length && decs(parts.join(" ")).length < 5 && !isTeamLine(lines[j])) {
+          var nums = decs(lines[j]); if (nums.length) parts.push(nums.join(" "));
+          j++; if (j - i > 8) break;
+        }
+        out.push(parts.join(" ")); i = j;
+      } else { out.push(ln); i++; }
+    }
+    return out;
+  }
   function parseBulletin(text) {
     var matches = [], errors = [];
-    var SEP = /\s+(?:-|–|—|vs\.?|v)\s+/i;
+    if (/</.test(text) && /<\/?(?:html|body|div|table|tr|td|span)\b/i.test(text)) text = htmlToText(text);
+    var rawLines = text.split(/\r?\n/).map(function (x) { return x.trim(); }).filter(Boolean);
     var PREFIX = /^\s*(?:\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?\s*)?(?:\d{1,2}:\d{2}\s*)?(?:\d{4,7}\s+)?/;
-    text.split(/\r?\n/).forEach(function (raw0, k) {
-      var raw = raw0.trim(); if (!raw) return;
+    mergeMultiline(rawLines).forEach(function (raw, k) {
       if (!/\d/.test(raw)) return; /* lig başlığı */
-      var line = raw.replace(PREFIX, ""), m = SEP.exec(line);
+      var line = raw.replace(PREFIX, ""), m = SEPRE.exec(line);
       var bad = function (reason) { errors.push({ line: k + 1, text: raw.slice(0, 80), reason: reason }); };
       if (!m) return bad("Takım ayracı (-) bulunamadı");
       var home = line.slice(0, m.index).trim(), rest = line.slice(m.index + m[0].length);

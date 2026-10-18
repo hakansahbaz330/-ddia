@@ -10,6 +10,13 @@
 - **API-Football (istatistik/oran):** Dokümanına erişilemedi (403), doğrulanmadığı için bağlayıcı yazılmadı. Takım istatistikleri şimdilik kendi
   arşivinizden (şut, korner, kart, form, karşılıklı geçmiş) hesaplanır.
 
+## Bülteni içeri almanın yolları
+1. Metni yapıştır (tek satır, sekmeli veya takımlar/oranlar alt alta çok satırlı düzen).
+2. Bülten sayfasını tarayıcıdan "Farklı kaydet" ile .html kaydedip uygulamaya yükle (etiketler soyulur, site'ye özgü seçici yoktur, tarayıcıda okunur).
+3. .txt/.csv dosyası.
+4. Lisanslı API (The Odds API) ile otomatik çekme (aşağıda).
+Bet365/Nesine'den sunucu tarafı otomatik çekme bilinçli olarak yazılmadı: kullanım koşulları ve bot korumaları nedeniyle.
+
 ## Kurulum
 `.env` içine `ODDS_API_KEY=...` (ve isteğe bağlı `ODDS_API_REGIONS=eu`). Sunucuyu çalıştırın: `uvicorn app.api.main:app`.
 - `GET /api/live/status` anahtar/kota durumu · `POST /api/live/refresh {"sport_keys":["soccer_epl"]}` oranları çekip saklar (zaman damgalı, tekrar yazılmaz)

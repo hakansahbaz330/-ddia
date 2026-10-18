@@ -143,7 +143,9 @@ p { margin: 0; }
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Bülten</h2><span class="tag" id="bulTag">örnek satırlar</span></div>
       <p class="hint">Bahisçi bülteninden maç satırlarını kopyalayıp yapıştırın. Her satır: Ev - Deplasman 1 X 2, isteğe bağlı 2,5 Üst ve 2,5 Alt. Saat ve lig başlıkları yok sayılır.</p>
       <label class="f" for="bul">Maç satırları<textarea id="bul" rows="7" spellcheck="false" autocomplete="off"></textarea></label>
-      <button class="btn" id="bulGo">Maçları ayrıştır</button>
+      <div class="row"><button class="btn" id="bulGo">Maçları ayrıştır</button><button class="btn alt" id="bulFile" type="button">Dosyadan yükle</button></div>
+      <input id="bulFileIn" type="file" accept=".txt,.csv,.html,.htm,text/plain,text/html,text/csv" hidden>
+      <p class="hint">Dosya: bülten sayfasını tarayıcıdan “Farklı kaydet” ile kaydettiğiniz .html dosyası veya .txt/.csv. Sayfa içeriği tarayıcınızda okunur, hiçbir yere gönderilmez. Çok satırlı kopyalamalar (takımlar ve oranlar alt alta) da okunur.</p>
       <div id="bulErr"></div>
     </div>
     <div id="bulList"></div>
@@ -591,6 +593,15 @@ p { margin: 0; }
   }
   $("bulGo").addEventListener("click", function () { $("bulTag").hidden = true; parseBul(); });
   $("bul").addEventListener("input", function () { $("bulTag").hidden = true; });
+  $("bulFile").addEventListener("click", function () { $("bulFileIn").click(); });
+  $("bulFileIn").addEventListener("change", function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    if (f.size > 8 * 1024 * 1024) { $("bulErr").textContent = ""; $("bulErr").appendChild(h("div", { class: "warn", text: "Dosya 8 MB'dan büyük; yalnızca bülten bölümünü kaydedin veya metni yapıştırın." })); return; }
+    var rd = new FileReader();
+    rd.onload = function () { $("bul").value = String(rd.result).length > 300000 ? String(rd.result).slice(0, 300000) : String(rd.result); $("bulTag").hidden = true; parseBul(); };
+    rd.onerror = function () { $("bulErr").textContent = "Dosya okunamadı."; };
+    rd.readAsText(f);
+  });
 
   function cmpRows(root, rows, hName, aName) {
     var g = h("div", { class: "cmp" });
