@@ -18,8 +18,24 @@ r.coupons.forEach((c, i) => {
   ck(Math.max(...Object.values(c.leagues)) <= 2, `kupon ${i}: lig başına en çok 2`);
 });
 ck(r.coupons[0].p >= r.coupons[1].p && r.coupons[1].p >= r.coupons[2].p, "olasılığa göre sıralı");
-const ids = (c) => c.legs.map((l) => l.mi + l.label);
-ck(r.coupons.every((c, i) => r.coupons.every((d, j) => i >= j || ids(c).filter((x) => ids(d).includes(x)).length <= 3)), "alternatifler en çok 3 ortak seçim");
+const sel = (c) => c.legs.map((l) => l.mi + "|" + l.label);
+const allSel = r.coupons.flatMap(sel);
+ck(new Set(allSel).size === allSel.length, "hiçbir seçim (maç+pazar) iki kuponda tekrar etmiyor");
+const matches1 = new Set(r.coupons[0].legs.map((l) => l.mi));
+ck(r.coupons.slice(1).some((c) => c.legs.some((l) => matches1.has(l.mi))) || true, "aynı maçın başka pazarı sonraki kuponda olabilir (izinli)");
+const r2 = E.buildCoupons(cands, { legs: 5, minOdds: 8, maxOdds: 30, minP: 0.45, perLeague: 2, count: 3, noRepeatMatch: true });
+const ms2 = r2.coupons.flatMap((c) => c.legs.map((l) => l.mi));
+ck(r2.coupons.length >= 1 && new Set(ms2).size === ms2.length, "noRepeatMatch: kuponlar arası hiçbir maç tekrar etmiyor");
+// aynı kullanıcı senaryosu: bir maçta tek güçlü pazar varsa 1. kupon alır, diğerleri o seçimi almaz ama aynı maçın başka pazarını alabilir
+const mini = [];
+for (let mi = 0; mi < 8; mi++) { mini.push({ mi, match: "M" + mi, league: "L" + (mi % 2), group: "Karşılıklı gol", label: "KG Var", p: 0.8 - mi * 0.02, odds: 1.6, time: "20:00", date: "d" });
+  mini.push({ mi, match: "M" + mi, league: "L" + (mi % 2), group: "Alt/Üst", label: "2,5 Üst", p: 0.6 - mi * 0.01, odds: 1.9, time: "20:00", date: "d" });
+  mini.push({ mi, match: "M" + mi, league: "L" + (mi % 2), group: "Maç sonucu", label: "MS 1", p: 0.5, odds: 2.3, time: "20:00", date: "d" }); }
+const r3 = E.buildCoupons(mini, { legs: 3, minOdds: 3, maxOdds: 30, minP: 0.4, perLeague: 3, count: 3 });
+const s3 = r3.coupons.flatMap(sel);
+ck(r3.coupons.length === 3 && new Set(s3).size === s3.length, "3 kupon, hepsi farklı seçimlerden (" + r3.coupons.map((c) => sel(c).join(",")).join(" || ") + ")");
+ck(r3.coupons[0].legs.every((l) => l.label === "KG Var"), "1. kupon en güçlü seçimleri (KG Var) alıyor");
+ck(r3.coupons.slice(1).every((c) => c.legs.every((l) => !(l.label === "KG Var" && r3.coupons[0].legs.some((x) => x.mi === l.mi)))), "2. ve 3. kupon aynı maçın KG Var'ını tekrar kullanmıyor");
 const none = E.buildCoupons(cands, { legs: 5, minOdds: 5000, maxOdds: 9000, minP: 0.45 });
 ck(none.coupons.length === 0, "ulaşılamayan oran hedefinde boş sonuç (zayıf seçimle doldurulmaz)");
 // brute-force doğrulama: 6 maç, 3 seçim: en yüksek olasılıklı uygun kupon

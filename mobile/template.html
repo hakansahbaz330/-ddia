@@ -169,29 +169,11 @@ p { margin: 0; }
       <div class="chiprow" id="wkLeagues" aria-label="Lig filtresi"></div>
       <div class="row">
         <label class="f" for="wkQ">Ara<input id="wkQ" type="text" placeholder="takım adı" autocomplete="off"></label>
-        <label class="f" for="wkSort">Sırala<select id="wkSort"><option value="time">Saate göre</option><option value="fav">Favori olasılığı</option><option value="goals">Gol beklentisi (2,5 üst)</option></select></label>
+        <label class="f" for="wkSort">Sırala<select id="wkSort"><option value="league">Lig önemine göre</option><option value="time">Saate göre</option><option value="fav">Favori olasılığı</option><option value="goals">Gol beklentisi (2,5 üst)</option></select></label>
       </div>
       <div id="wkList" class="mlist"></div>
       <button class="btn alt sm" id="wkMore" hidden></button>
     </div>
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Başka bülten yapıştır</h2><span class="tag" id="bulTag">örnek satırlar</span></div>
-      <p class="hint">Bahisçi bülteninden maç satırlarını kopyalayıp yapıştırın. Her satır: Ev - Deplasman 1 X 2, isteğe bağlı 2,5 Üst ve 2,5 Alt. Saat ve lig başlıkları yok sayılır.</p>
-      <label class="f" for="bul">Maç satırları<textarea id="bul" rows="7" spellcheck="false" autocomplete="off"></textarea></label>
-      <div class="row"><button class="btn" id="bulGo">Maçları ayrıştır</button><button class="btn alt" id="bulFile" type="button">Dosyadan yükle</button></div>
-      <input id="bulFileIn" type="file" accept=".txt,.csv,.html,.htm,text/plain,text/html,text/csv" hidden>
-      <p class="hint">Dosya: bülten sayfasını tarayıcıdan “Farklı kaydet” ile kaydettiğiniz .html dosyası veya .txt/.csv. Sayfa içeriği tarayıcınızda okunur, hiçbir yere gönderilmez. Çok satırlı kopyalamalar (takımlar ve oranlar alt alta) da okunur.</p>
-      <details id="phoneSetup"><summary>Telefonda tek dokunuş kurulumu (bilgisayarsız)</summary>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
-          <p class="hint">Bir kez kurun: aşağıdaki kodu kopyalayıp telefonunuzun tarayıcısında yeni bir yer imine adres olarak yapıştırın (ad: “Bülten al”).</p>
-          <textarea id="bmCode" rows="4" readonly spellcheck="false"></textarea>
-          <button class="btn alt sm" id="bmCopy" type="button" style="align-self:flex-start">Kodu kopyala</button>
-          <p class="hint">Kullanım: tarayıcıda bülten sayfasını açın, maçlar görününce yer imine dokunun (Chrome Android: adres çubuğuna “Bülten al” yazıp yer imini seçin; iPhone Safari: Yer İmleri’nden dokunun). Metin panoya kopyalanır. Buraya dönüp Maç satırları alanına uzun basıp Yapıştır deyin; maçlar kendiliğinden listelenir. Bu yöntem yalnızca açtığınız sayfanın görünen metnini okur, hiçbir sunucuya veri göndermez. Telefonda denenmedi; tarayıcınız yer iminde javascript: kodunu engellerse sayfa metnini elle seçip kopyalayın.</p>
-        </div></details>
-      <div id="inboxInfo" class="hint" hidden></div>
-      <div id="bulErr"></div>
-    </div>
-    <div id="bulList"></div>
   </div>
   <div id="bulDetail" hidden style="display:none;flex-direction:column;gap:14px"></div>
 </section>
@@ -271,7 +253,8 @@ p { margin: 0; }
     <details><summary>Gelişmiş</summary><div class="row" style="margin-top:8px">
       <label class="f" for="gPerLeague">Aynı ligden en çok<input id="gPerLeague" type="number" min="1" value="2" inputmode="numeric"></label>
       <label class="f" for="gCount">Alternatif sayısı<input id="gCount" type="number" min="1" max="6" value="3" inputmode="numeric"></label>
-      <label class="f" for="gShared">Kuponlar arası en çok ortak seçim<input id="gShared" type="number" min="0" value="2" inputmode="numeric"></label></div></details>
+      </div><label class="ck" style="margin-top:8px"><input type="checkbox" id="gNoMatch"> Kuponlar arasında aynı maçı da tekrar kullanma</label>
+      <p class="hint">Aynı seçim (maç + pazar) hiçbir zaman iki kuponda birden yer almaz. Bu kutu işaretlenirse aynı maçın başka pazarı da kullanılmaz.</p></details>
     <button class="btn" id="gGo">Kupon öner</button><div class="hint" id="gProg"></div><div id="gOut"></div>
   </div>
   <div class="card"><h2>Sanal defter</h2><div id="ledger"></div></div>
@@ -285,7 +268,7 @@ p { margin: 0; }
     <p>Oranlar marjdan arındırılır (p<sub>i</sub> = (1/o<sub>i</sub>) / Σ(1/o<sub>j</sub>)). Benzerlik, 1X2 olasılıkları (ve girilmişse 2,5 üst olasılığı) arasındaki ağırlıklı öklid uzaklığıdır; puan = 100·exp(−uzaklık/0,05). Ağırlıklar başlangıç değerleridir, doğrulama testiyle ayarlanmamıştır. Yüzde aralıkları Wilson %95 güven aralığıdır.</p>
     <p>Her maç için tek bir 1X2 oranı kullanılır: önce Pinnacle kapanış, yoksa piyasa ortalaması kapanış, sonra maç öncesi oranlar. Dosyalarda oran zaman damgası olmadığından “kapanış” yalnızca sütun adına dayanır.</p></div>
   <div class="card"><h2>Sınırlar</h2>
-    <p>Bu sayfada canlı oran bağlantısı yok (tarayıcıdaki sayfa dış API'lere bağlanamaz); bülten satırlarını yapıştırırsınız. Canlı fikstür ve oran çekme, kendi bilgisayarınızda çalışan sunucu tarafındadır (README). Bet365, Nesine ve SofaScore'un resmi açık API'leri yok; bunlardan otomatik veri çekmiyoruz. Arşivde yalnızca 1X2 ve 2,5 üst/alt oranları var. Karşılıklı gol, ilk yarı, korner ve kart sonuçları skorlardan ve istatistiklerden hesaplanır; bu pazarların oranları olmadığından piyasa karşılaştırması yapılamaz. Korner ve kart istatistiği tüm maçlarda yok (örneklem n ile gösterilir). Kupon olasılığı, seçimlerin bağımsız olduğunu varsayar.</p>
+    <p>Bülten, haftalık iddaa bülten PDF’inden okunup uygulamaya gömülür; canlı oran bağlantısı yoktur. Yeni bülten geldiğinde uygulama yeniden üretilir. Oranlar bülten tarihindeki oranlardır. Yalnızca arşivdeki ligler gösterilir. Bet365, Nesine ve SofaScore’dan otomatik veri çekilmez. Korner ve kart istatistiği her maçta yok (örneklem sayısı gösterilir); kupon olasılığı, farklı maçlardaki seçimlerin bağımsız olduğunu varsayar.</p>
     <p>Bu uygulama bahis oynatmaz ve kazanç vaadi taşımaz. Beklenen değer teorik bir hesaptır, gerçekleşmiş kâr değildir.</p></div>
 </section>
 </main>
@@ -633,11 +616,17 @@ p { margin: 0; }
 
 
   /* ---------- haftalık bülten (PDF'ten): yalnızca arşivdeki ligler ---------- */
-  var wkDay = "all", wkShown = 50, wkItems = [], wkLeagues = {}, wkSort = "time";
+  var wkDay = "all", wkShown = 50, wkItems = [], wkLeagues = {}, wkSort = "league";
   var DAYN = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"], MON = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
   function dayLabel(d) { var x = new Date(d + "T00:00:00Z"); return x.getUTCDate() + " " + MON[x.getUTCMonth()] + " " + DAYN[x.getUTCDay()]; }
   function daysBetween(a, b) { return Math.round((Date.parse(b + "T00:00:00Z") - Date.parse(a + "T00:00:00Z")) / 86400000); }
   function nOdds(o) { return Object.keys(o).length; }
+  /* Lig önemi (küçük = önce). Süper Lig ilk, sonra büyük ligler; alt ligler sonda. */
+  var LIG_ORDER = ["T1", "E0", "SP1", "I1", "D1", "F1", "N1", "P1", "B1", "G1", "SC0", "E1", "I2", "SP2", "D2", "F2", "E2", "SC1", "E3", "EC", "SC2", "SC3"];
+  var LIG_TR = { T1: "Süper Lig", E0: "Premier Lig", SP1: "La Liga", I1: "Serie A", D1: "Bundesliga", F1: "Ligue 1", N1: "Eredivisie", P1: "Portekiz Primeira", B1: "Belçika Pro Lig", G1: "Yunanistan Süper Lig",
+    SC0: "İskoçya Premiership", E1: "Championship", I2: "Serie B", SP2: "La Liga 2", D2: "2. Bundesliga", F2: "Ligue 2", E2: "League One", SC1: "İskoçya Championship", E3: "League Two", EC: "National League", SC2: "İskoçya League One", SC3: "İskoçya League Two" };
+  function ligRank(code) { var i = LIG_ORDER.indexOf(code); return i < 0 ? 99 : i; }
+  function ligName(code) { return LIG_TR[code] || (divInfo(code) ? divInfo(code).d.league : code); }
   var CHIPS = [["1", "ms1", "MS 1"], ["0", "ms0", "MS 0"], ["2", "ms2", "MS 2"], ["Ü2,5", "ou25_ust", "2,5 Üst"], ["A2,5", "ou25_alt", "2,5 Alt"], ["KG+", "kg_var", "KG Var"], ["KG−", "kg_yok", "KG Yok"]];
   function divInfo(code) { var i = D.meta.divs.findIndex(function (d) { return d.code === code; }); return i < 0 ? null : { idx: i, d: D.meta.divs[i] }; }
   function initWeekly() {
@@ -665,8 +654,8 @@ p { margin: 0; }
     };
     var lc = $("wkLeagues"); lc.textContent = "";
     var cnt = {}; wkItems.forEach(function (x) { cnt[x.division] = (cnt[x.division] || 0) + 1; });
-    Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; }).forEach(function (code) {
-      var di = divInfo(code), nm = di ? di.d.league : code;
+    Object.keys(cnt).sort(function (a, b) { return ligRank(a) - ligRank(b); }).forEach(function (code) {
+      var di = divInfo(code), nm = ligName(code);
       lc.appendChild(h("button", { class: "lchip", "aria-pressed": "false", "data-v": code, text: nm + " " + cnt[code], title: di ? di.d.country : "" }));
     });
     lc.onclick = function (e) {
@@ -706,11 +695,13 @@ p { margin: 0; }
     rows.sort(function (a, b) {
       if (wkSort === "fav") return b.fav - a.fav;
       if (wkSort === "goals") return (b.over || 0) - (a.over || 0);
+      if (wkSort === "league") return ligRank(a.division) - ligRank(b.division) || ((a.date + a.time) < (b.date + b.time) ? -1 : 1);
       return (a.date + a.time) < (b.date + b.time) ? -1 : 1;
     });
-    var lastDay = null;
+    var lastDay = null, lastLig = null;
     rows.slice(0, wkShown).forEach(function (x) {
       if (wkSort === "time" && x.date !== lastDay) { lastDay = x.date; list.appendChild(h("div", { class: "dayhead", text: dayLabel(x.date) })); }
+      if (wkSort === "league" && x.division !== lastLig) { lastLig = x.division; list.appendChild(h("div", { class: "dayhead", text: ligName(x.division) })); }
       var di = divInfo(x.division);
       var chips = h("div", { class: "chiprow" });
       CHIPS.forEach(function (c) {
@@ -720,7 +711,7 @@ p { margin: 0; }
       list.appendChild(h("div", { class: "wkitem" }, [
         h("button", { class: "wkrow", onclick: function () { bulItems = wkItems; openDetail(x.mi); } }, [
           h("span", { class: "wkt num", text: x.time }),
-          h("span", { class: "wkn" }, [h("b", { text: x.home + " – " + x.away }), h("small", { text: (di ? di.d.league : x.division) + " · " + nOdds(x.full) + " oran" + (wkSort === "fav" ? " · favori %" + Math.round(x.fav * 100) : "") + (wkSort === "goals" && x.over !== null ? " · 2,5 üst %" + Math.round(x.over * 100) : "") })]),
+          h("span", { class: "wkn" }, [h("b", { text: x.home + " – " + x.away }), h("small", { text: (wkSort === "league" ? dayLabel(x.date).slice(0, 6) + " · " : ligName(x.division) + " · ") + nOdds(x.full) + " oran" + (wkSort === "fav" ? " · favori %" + Math.round(x.fav * 100) : "") + (wkSort === "goals" && x.over !== null ? " · 2,5 üst %" + Math.round(x.over * 100) : "") })]),
           h("span", { class: "wko" }, [h("small", { text: "analiz" }), h("span", { text: "›" })])]),
         chips]));
     });
@@ -837,7 +828,7 @@ p { margin: 0; }
 
   /* ---------- otomatik kupon üretici ---------- */
   var gState = { prof: "dengeli" }, GROUPS_ALL = ["Maç sonucu", "Alt/Üst", "Karşılıklı gol", "Toplam gol", "İlk yarı", "İY / MS", "MS ve 2,5"];
-  var PRESETS = { dengeli: { minP: 45, maxP: 100, minO: 6, maxO: 25, legs: 4 }, banko: { minP: 70, maxP: 100, minO: 2.5, maxO: 8, legs: 3 }, surpriz: { minP: 20, maxP: 50, minO: 30, maxO: 150, legs: 4 } };
+  var PRESETS = { dengeli: { minP: 45, maxP: 100, minO: 6, maxO: 25, legs: 4 }, banko: { minP: 70, maxP: 100, minO: 1.5, maxO: 5, legs: 3 }, surpriz: { minP: 20, maxP: 50, minO: 30, maxO: 150, legs: 4 } };
   function copyText(text, btn, label) {
     var done = function (ok) { btn.textContent = ok ? "Kopyalandı" : "Kopyalanamadı"; setTimeout(function () { btn.textContent = label; }, 1800); };
     try { navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); }); } catch (e) { done(false); }
@@ -887,9 +878,10 @@ p { margin: 0; }
     });
     var o = { legs: Math.max(1, Math.min(10, Math.round(readNum("gLegs", 4)))), minOdds: readNum("gMinO", 1), maxOdds: readNum("gMaxO", 1000), minP: readNum("gMinP", 0) / 100, maxP: readNum("gMaxP", 100) / 100,
       perLeague: Math.max(1, Math.round(readNum("gPerLeague", 2))), count: Math.max(1, Math.min(6, Math.round(readNum("gCount", 3)))), groups: groups };
-    o.maxShared = Math.max(0, Math.round(readNum("gShared", o.legs - 2)));
+    o.noRepeatMatch = $("gNoMatch").checked;
     var r = E.buildCoupons(cands, o);
     out.appendChild(h("div", { class: "hint", text: r.matchesInPool + " maçta " + r.poolSize + " aday seçim süzüldü." }));
+    if (r.coupons.length && r.coupons.length < o.count) out.appendChild(h("div", { class: "warn", text: o.count + " kupon istendi; yinelenen seçim olmadan koşullara uyan " + r.coupons.length + " kupon bulundu." }));
     if (!r.coupons.length) {
       out.appendChild(h("div", { class: "warn", text: "Bu koşullara uyan kupon bulunamadı. Zayıf seçimlerle doldurmadım. Oran aralığını genişletin, minimum olasılığı düşürün veya maç sayısını/pazarları değiştirin." })); return;
     }
@@ -901,7 +893,7 @@ p { margin: 0; }
       var avgM = Math.exp(c.legs.reduce(function (a, l) { return a + Math.log(1 / (l.p * l.odds)); }, 0) / c.legs.length) - 1;
       var dl = h("dl", { class: "kv" });
       [["Tahmini başarı (olasılık çarpımı)", pct(c.p, 1)], ["Teorik beklenen getiri", (c.ev >= 0 ? "+" : "−") + pct(Math.abs(c.ev), 0)], ["Seçim başına ortalama marj kaybı", pct(avgM, 1)],
-        ["Lig dağılımı", Object.keys(c.leagues).map(function (l) { var di = divInfo(l); return (di ? di.d.league : l) + " ×" + c.leagues[l]; }).join(", ")]].forEach(function (a) { dl.appendChild(h("dt", { text: a[0] })); dl.appendChild(h("dd", { text: a[1], style: "text-align:right" })); });
+        ["Lig dağılımı", Object.keys(c.leagues).map(function (l) { var di = divInfo(l); return ligName(l) + " ×" + c.leagues[l]; }).join(", ")]].forEach(function (a) { dl.appendChild(h("dt", { text: a[0] })); dl.appendChild(h("dd", { text: a[1], style: "text-align:right" })); });
       card.appendChild(dl);
       card.appendChild(h("div", { class: "row" }, [
         h("button", { class: "btn sm", text: "Kuponuma al", onclick: function () {
@@ -915,47 +907,10 @@ p { margin: 0; }
   }
 
   /* ---------- bülten ve otomatik maç analizi ---------- */
-  var WEEKLY = __WEEKLY__;
   var WKPDF = __WKPDF__;
-  var EXAMPLE = "Galatasaray - Fenerbahce 2,45 3,40 2,80 1,80 2,00\nArsenal - Chelsea 1,70 4,00 5,00 1,75 2,05\nBayern Munich - Dortmund 1,55 4,50 5,50 1,45 2,65\nReal Madrid - Barcelona 2,30 3,60 2,95";
   var bulItems = [];
   function showBulList() { $("bulDetail").style.display = "none"; $("bulHome").style.display = "flex"; window.scrollTo(0, 0); }
-  function parseBul() {
-    var out = $("bulList"); out.textContent = ""; $("bulErr").textContent = "";
-    var r = E.parseBulletin($("bul").value);
-    bulItems = r.matches.map(function (m) { m.hIdx = E.matchTeam(D, m.home); m.aIdx = E.matchTeam(D, m.away); return m; });
-    if (r.errors.length) {
-      var w = h("div", { class: "warn" }, [h("b", { text: r.errors.length + " satır okunamadı: " })]);
-      r.errors.slice(0, 5).forEach(function (e) { w.appendChild(h("div", { text: e.line + ". satır: " + e.reason + " — " + e.text })); });
-      $("bulErr").appendChild(w);
-    }
-    if (!bulItems.length) { out.appendChild(h("p", { class: "hint", text: "Ayrıştırılan maç yok. Satır biçimi: Ev - Deplasman 1,85 3,40 4,20" })); return; }
-    out.appendChild(h("h3", { text: bulItems.length + " maç · analiz için dokunun", style: "margin:2px 2px 0" }));
-    bulItems.forEach(function (m, k) {
-      var tagTxt = m.hIdx >= 0 && m.aIdx >= 0 ? "iki takım arşivde" : "arşivde eksik takım var";
-      out.appendChild(h("button", { class: "mlink", onclick: function () { openDetail(k); } }, [
-        h("b", { text: m.home + " – " + m.away }),
-        h("span", { class: "meta num", style: "font-size:12px;color:var(--muted)", text: m.odds.map(function (x) { return nf(x, 2); }).join(" / ") + (m.ou ? "  ·  2,5 ü/a " + nf(m.ou[0], 2) + " / " + nf(m.ou[1], 2) : "") }),
-        h("span", { class: "tag", style: "align-self:flex-start", text: tagTxt })]));
-    });
-  }
-  $("bulGo").addEventListener("click", function () { $("bulTag").hidden = true; parseBul(); });
-  $("bul").addEventListener("input", function () { $("bulTag").hidden = true; });
-  $("bul").addEventListener("paste", function () { setTimeout(function () { $("bulTag").hidden = true; parseBul(); }, 60); });
-  $("bmCode").value = "javascript:(function(){var t=(document.body.innerText||'').slice(0,300000);var ok=function(){alert('Bülten kopyalandı ('+t.length+' karakter). Oran Arşivi uygulamasına dönüp yapıştırın.')};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok,function(){prompt('Kopyalayın:',t.slice(0,2000))})}else{prompt('Kopyalayın:',t.slice(0,2000))}})();";
-  $("bmCopy").addEventListener("click", function () {
-    var b = $("bmCopy"), done = function (ok) { b.textContent = ok ? "Kopyalandı" : "Kopyalanamadı; metni seçip kopyalayın"; setTimeout(function () { b.textContent = "Kodu kopyala"; }, 2000); };
-    try { navigator.clipboard.writeText($("bmCode").value).then(function () { done(true); }, function () { $("bmCode").select(); done(false); }); } catch (e) { $("bmCode").select(); done(false); }
-  });
-  $("bulFile").addEventListener("click", function () { $("bulFileIn").click(); });
-  $("bulFileIn").addEventListener("change", function () {
-    var f = this.files && this.files[0]; if (!f) return;
-    if (f.size > 8 * 1024 * 1024) { $("bulErr").textContent = ""; $("bulErr").appendChild(h("div", { class: "warn", text: "Dosya 8 MB'dan büyük; yalnızca bülten bölümünü kaydedin veya metni yapıştırın." })); return; }
-    var rd = new FileReader();
-    rd.onload = function () { $("bul").value = String(rd.result).length > 300000 ? String(rd.result).slice(0, 300000) : String(rd.result); $("bulTag").hidden = true; parseBul(); };
-    rd.onerror = function () { $("bulErr").textContent = "Dosya okunamadı."; };
-    rd.readAsText(f);
-  });
+
 
   function cmpRows(root, rows, hName, aName) {
     var g = h("div", { class: "cmp" });
@@ -1116,26 +1071,11 @@ p { margin: 0; }
   showMarket();
 
   function b64ToBytes(s) { var bin = atob(s), n = bin.length, u = new Uint8Array(n); for (var i = 0; i < n; i++) u[i] = bin.charCodeAt(i); return u; }
-  var inboxLast = 0, inboxTimer = null;
-  function startInbox() {
-    if (!/^https?:$/.test(location.protocol) || /claude\.ai|claudeusercontent/.test(location.hostname)) return;
-    function poll() {
-      fetch("/api/bulletin/inbox?after=" + inboxLast).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (j) {
-        var info = $("inboxInfo"); info.hidden = false;
-        if (!info.dataset.ok) { info.dataset.ok = "1"; info.textContent = "Gelen kutusu bağlı: tarayıcınızdaki yer imi ile bülten gönderin (/bookmarklet sayfası)."; }
-        if (j.new) {
-          inboxLast = j.id; $("bul").value = j.text; $("bulTag").hidden = true; parseBul(); showBulList();
-          info.textContent = "Gelen kutusundan alındı: " + (j.source || "sayfa") + " · " + (j.ts || "") + " · " + bulItems.length + " maç";
-        }
-      }).catch(function () { clearInterval(inboxTimer); });
-    }
-    poll(); inboxTimer = setInterval(poll, 2500);
-  }
   function start() {
     if (typeof DecompressionStream === "undefined") { $("stat").textContent = "Tarayıcı bu veriyi açamıyor (güncel Chrome/Safari gerekir)."; return; }
     var bytes = b64ToBytes($("blob").textContent.trim());
     new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer().then(function (buf) {
-      D = E.decode(buf); fillSelects(); initWeekly(); if (wkItems.length) initGenerator(); else $("genCard").hidden = true; if (WEEKLY.text) { $("bul").value = WEEKLY.text; $("bulTag").textContent = WEEKLY.title || "haftalık bülten"; } else { $("bul").value = EXAMPLE; } parseBul(); analyze(); startInbox();
+      D = E.decode(buf); fillSelects(); initWeekly(); if (wkItems.length) initGenerator(); else $("genCard").hidden = true; analyze();
     }).catch(function (e) { $("stat").textContent = "Arşiv açılamadı: " + e.message; });
   }
   start();

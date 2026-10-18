@@ -33,6 +33,7 @@ belirgin tutarsızlık yoktur; model aynı bahisçinin oranlarından türediğin
   arşivinizden (şut, korner, kart, form, karşılıklı geçmiş) hesaplanır.
 
 ## Bülteni içeri almanın yolları
+> Not: Mobil uygulamadan yapıştırma, dosyadan yükleme ve telefon yer imi bölümleri kaldırıldı; uygulama yalnızca haftalık bülten PDF'inden gömülen bülteni gösterir (aşağıdaki "Haftalık bülten PDF'i"). Aşağıdaki diğer yöntemler yalnızca arka uç/tarihçe içindir.
 1. Metni yapıştır (tek satır, sekmeli veya takımlar/oranlar alt alta çok satırlı düzen).
 2. Bülten sayfasını tarayıcıdan "Farklı kaydet" ile .html kaydedip uygulamaya yükle (etiketler soyulur, site'ye özgü seçici yoktur, tarayıcıda okunur).
 3. .txt/.csv dosyası.

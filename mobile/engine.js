@@ -496,7 +496,7 @@
 
   /* ================= Otomatik kupon (Faz 7) ================= */
   /* cand: [{mi, match, league, group, label, odds, p, time, date}] */
-  function buildCoupons(cands, o) {
+  function buildOne(cands, o) {
     var k = o.legs, lo = o.minOdds, hi = o.maxOdds, minP = o.minP, maxP = o.maxP === undefined ? 1 : o.maxP;
     var perLeague = o.perLeague || 99, nOut = o.count || 3, maxShared = o.maxShared === undefined ? Math.max(0, k - 2) : o.maxShared;
     var pool = cands.filter(function (c) { return c.p >= minP && c.p <= maxP && c.odds >= (o.minLegOdds || 1.01) && (!o.groups || o.groups.indexOf(c.group) > -1); });
@@ -505,7 +505,7 @@
       var arr = byMatch[m].sort(function (a, b) { return b.p - a.p; }).slice(0, 6); return { mi: +m, c: arr };
     });
     /* her bölmede (adet, log-oran kovası) en iyi birkaç kısmi kupon; hedef: ortak olasılık */
-    var step = 0.12, states = [{ legs: [], lp: 0, lo: 0, lg: {} }], levels = {};
+    var step = 0.06, states = [{ legs: [], lp: 0, lo: 0, lg: {} }], levels = {};
     function key(s) { return s.legs.length + ":" + Math.round(s.lo / step); }
     var buckets = {}; buckets[key(states[0])] = [states[0]];
     ms.sort(function (a, b) { return Math.max.apply(null, b.c.map(function (x) { return x.p; })) - Math.max.apply(null, a.c.map(function (x) { return x.p; })); });
@@ -523,7 +523,7 @@
       });
       add.forEach(function (s) {
         var kk = key(s), b = buckets[kk] = buckets[kk] || [];
-        b.push(s); b.sort(function (x, y) { return y.lp - x.lp; }); if (b.length > 4) b.length = 4;
+        b.push(s); b.sort(function (x, y) { return y.lp - x.lp; }); if (b.length > 6) b.length = 6;
       });
     });
     var finals = [];
@@ -538,6 +538,21 @@
     });
     out.forEach(function (c) { c.ev = c.p * c.odds - 1; c.leagues = {}; c.legs.forEach(function (l) { c.leagues[l.league] = (c.leagues[l.league] || 0) + 1; }); });
     return { coupons: out, poolSize: pool.length, matchesInPool: ms.length, feasible: finals.length };
+  }
+  /* Birden çok kupon: ardışık üretilir; bir kuponda kullanılan seçim (maç + pazar) sonraki kuponlarda ASLA tekrar edilmez.
+     o.noRepeatMatch: true ise aynı maç da (başka pazarıyla bile) tekrar kullanılmaz. */
+  function buildCoupons(cands, o) {
+    var n = o.count || 3, used = {}, usedMatch = {}, out = [], first = null;
+    for (var k = 0; k < n; k++) {
+      var pool = cands.filter(function (c) { return !used[c.mi + "|" + c.label] && !(o.noRepeatMatch && usedMatch[c.mi]); });
+      var r = buildOne(pool, Object.assign({}, o, { count: 1 }));
+      if (!first) first = r;
+      if (!r.coupons.length) break;
+      var c = r.coupons[0]; out.push(c);
+      c.legs.forEach(function (l) { used[l.mi + "|" + l.label] = 1; usedMatch[l.mi] = 1; });
+    }
+    out.sort(function (a, b) { return b.p - a.p; }); /* seçimler zaten ayrık; gösterimde olasılığı yüksek olan önce */
+    return { coupons: out, poolSize: first.poolSize, matchesInPool: first.matchesInPool, feasible: first.feasible, requested: n };
   }
 
   /* ================= Tek maç otomatik analizi ================= */
