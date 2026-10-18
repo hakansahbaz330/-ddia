@@ -1,7 +1,7 @@
 # Arşiv inceleme bulguları (Faz 1)
 
 Kaynak: 10 adet Football-Data.co.uk "all-euro-data" Excel dosyası (2017-18 … 2026-27), her biri 22 lig sayfası.
-Gerçek veri: **69.920 maç**, 2017-07-28 → 2026-09-17, **562 takım**, 22 lig (İngiltere 1–5, İskoçya 1–4, Almanya, İspanya,
+Gerçek veri: **70.428 maç**, 2017-07-28 → 2026-10-14, **562 takım**, 22 lig (İngiltere 1–5, İskoçya 1–4, Almanya, İspanya,
 İtalya, Fransa 1–2, Hollanda, Belgika, Portekiz, Türkiye, Yunanistan). **~9 sezon** (2026-27 yalnızca 1.088 maç, kısmi) — 10 yıl değil.
 Her dosyada 22 sayfa; dosya başına 6.904–7.830 maç (2019-20 COVID nedeniyle az).
 
