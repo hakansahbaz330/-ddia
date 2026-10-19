@@ -13,6 +13,9 @@ IDDAA_TO_ARCHIVE = {
     "İSKOP": "SC0", "İSKCH": "SC1", "İSKO1": "SC2", "İSKO2": "SC3",
     "ALBU": "D1", "AL2B": "D2", "İSPL1": "SP1", "İSPL2": "SP2", "İTSA": "I1", "İTSB": "I2",
     "FR1": "F1", "FR2": "F2", "HOLL": "N1", "SÜPL": "T1", "YUN": "G1",
+    # UEFA kupaları (arşivde bölünme yok; oran tabanlı analiz): ŞMPL=Şampiyonlar Ligi, AVRL=Avrupa Ligi, AVKL=Konferans Ligi
+    # (20-21 Ekim 2026 bülteninde takımlardan doğrulandı).
+    "ŞMPL": "UCL", "AVRL": "UEL", "AVKL": "UECL",
     # İFAK = FA Kupası (Atherton Collieries gibi alt lig takımları var; arşivdeki National League değil) -> bilinçli olarak yok.
     # EC (National League) bu bültende lig olarak görülmedi.
     # Arşivde olan ama bu bültende görülmeyen ligler için olası kodlar (doğrulanmadı, bu yüzden boş bırakıldı): B1 Belçika, P1 Portekiz.
@@ -22,6 +25,7 @@ ARCHIVE_DIVISIONS = {
     "SC0": "Premiership", "SC1": "Championship (İskoçya)", "SC2": "League One (İskoçya)", "SC3": "League Two (İskoçya)",
     "D1": "Bundesliga", "D2": "2. Bundesliga", "SP1": "La Liga", "SP2": "Segunda División", "I1": "Serie A", "I2": "Serie B",
     "F1": "Ligue 1", "F2": "Ligue 2", "N1": "Eredivisie", "B1": "Pro League", "P1": "Primeira Liga", "T1": "Süper Lig", "G1": "Süper Lig (Yunanistan)",
+    "UCL": "Şampiyonlar Ligi", "UEL": "Avrupa Ligi", "UECL": "Konferans Ligi",
 }
 
 
