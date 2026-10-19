@@ -184,6 +184,8 @@ tr.me td { background: var(--accent-soft); font-weight: 600; }
 .pcm-off .mc-cell { min-height: 42px; }
 .pcm-model .mc-cell, .pcm-arsiv .mc-cell { min-height: 46px; }
 .mc-cell i.wait { opacity: .35; }
+.lnk { background: transparent; border: 0; padding: 4px 0; min-height: 32px; color: var(--ink); font-weight: 600; text-align: left; text-decoration: underline dotted var(--accent); text-underline-offset: 3px; cursor: pointer; overflow-wrap: anywhere; }
+.lnk:hover, .lnk:focus-visible { color: var(--accent); }
 .tabbar button { flex: 1; min-height: 58px; min-width: 0; border: 0; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
 .tabbar svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .tabbar button[aria-selected=true] { color: var(--accent); font-weight: 600; }
@@ -619,7 +621,7 @@ p { margin: 0; }
     var L = $("legs"), C = $("cpn"); L.textContent = ""; C.textContent = "";
     if (!legs.length) { L.appendChild(h("p", { class: "hint", text: "Kupon boş. Analiz sonuçlarında + düğmesiyle seçim ekleyin." })); }
     legs.forEach(function (l, k) {
-      L.appendChild(h("div", { class: "leg" }, [h("div", { text: (l.date ? dayLabel(l.date).slice(0, 6) + " " + l.time + " · " : "") + l.match + " · " + l.market }),
+      L.appendChild(h("div", { class: "leg" }, [h("div", {}, [(l.date ? dayLabel(l.date).slice(0, 6) + " " + l.time + " · " : ""), matchLink(l, "kupon"), " · " + l.market]),
         h("button", { class: "plus x", "aria-label": "Seçimi sil", text: "×", onclick: function () { legs.splice(k, 1); store.set("oa.legs", legs); renderCoupon(); updateCpBar(); } }),
         h("div", { class: "meta num", style: "font-size:12px;color:var(--muted)", text: "oran " + nf(l.odds, 2) + " · " + (l.kind === "model" ? "model olasılığı " + pct(l.p) : "geçmiş sıklık " + pct(l.p) + " (n=" + l.n + ")") })]));
     });
@@ -819,7 +821,7 @@ p { margin: 0; }
       });
       var di = divInfo(x.division);
       list.appendChild(h("div", { class: "mc" }, [
-        h("button", { class: "mc-top", onclick: function () { bulItems = wkItems; openDetail(x.mi); } }, [
+        h("button", { class: "mc-top", onclick: function () { detailFrom = null; bulItems = wkItems; openDetail(x.mi); } }, [
           h("span", { class: "mc-time" }, [h("b", { text: x.time }), h("small", { text: dayLabel(x.date).slice(0, 6) })]),
           h("span", { class: "mc-teams" }, [h("span", { class: "t", text: x.home }), h("span", { class: "t", text: x.away }), h("small", { text: ligName(x.division) + (wkSort === "fav" ? " · favori %" + Math.round(x.fav * 100) : "") + (wkSort === "goals" && x.over !== null ? " · 2,5 üst %" + Math.round(x.over * 100) : "") })]),
           h("span", { class: "mc-go", text: "analiz ›" })]),
@@ -1030,7 +1032,7 @@ p { margin: 0; }
     r.coupons.forEach(function (c, k) {
       var card = h("div", { class: "cp" }, [h("div", { style: "display:flex;justify-content:space-between;align-items:baseline;gap:8px" }, [h("b", { text: "Kupon " + (k + 1) }), h("span", { class: "tag", text: "oran " + nf(c.odds, 2) })])]);
       c.legs.forEach(function (l) {
-        card.appendChild(h("div", { class: "cpl" }, [h("span", { class: "num", style: "color:var(--muted);font-size:12px", text: dayLabel(l.date).slice(0, 6) + " " + l.time }), h("span", { text: l.match + " · " + l.label }), h("span", { class: "num", text: nf(l.odds, 2) + "  %" + Math.round(l.p * 100) })]));
+        card.appendChild(h("div", { class: "cpl" }, [h("span", { class: "num", style: "color:var(--muted);font-size:12px", text: dayLabel(l.date).slice(0, 6) + " " + l.time }), h("span", {}, [matchLink(l, "kupon"), " · " + l.label]), h("span", { class: "num", text: nf(l.odds, 2) + "  %" + Math.round(l.p * 100) })]));
       });
       var avgM = Math.exp(c.legs.reduce(function (a, l) { return a + Math.log(1 / (l.p * l.odds)); }, 0) / c.legs.length) - 1;
       var dl = h("dl", { class: "kv" });
@@ -1051,6 +1053,21 @@ p { margin: 0; }
   /* ---------- bülten ve otomatik maç analizi ---------- */
   var WKPDF = __WKPDF__;
   var bulItems = [];
+  /* Kupondan maç analizine git; geri düğmesi kupona (aynı kaydırma konumuna) döner. */
+  var detailFrom = null, detailScroll = 0;
+  function openMatchFrom(mi, from) {
+    if (mi === undefined || mi === null || !wkItems[mi]) return;
+    detailFrom = from || null; detailScroll = window.scrollY; bulItems = wkItems;
+    go("bulten"); openDetail(mi);
+  }
+  function backFromDetail() {
+    var from = detailFrom, y = detailScroll; detailFrom = null; showBulList();
+    if (from) { go(from); setTimeout(function () { window.scrollTo(0, y); }, 0); }
+  }
+  function matchLink(l, from) {
+    if (l.mi === undefined || l.mi === null) return h("span", { text: l.match });
+    return h("button", { class: "lnk", type: "button", "aria-label": l.match + " analizini aç", onclick: function () { openMatchFrom(l.mi, from); } }, [l.match]);
+  }
   function showBulList() { $("bulDetail").style.display = "none"; $("bulHome").style.display = "flex"; window.scrollTo(0, 0); }
 
 
@@ -1074,7 +1091,7 @@ p { margin: 0; }
       var q = { odds: it.odds, ou: it.ou }, B = it.full ? (it._B = it._B || E.analyzeBulletinMatch(it.full)) : null;
       var R = E.analyzeMatch(D, q, it.hIdx, it.aIdx, B ? { lh: B.lh, la: B.la, rmse: B.rmse } : undefined);
       var title = h("div", { class: "card" }, [
-        h("button", { class: "btn alt sm", style: "align-self:flex-start", text: "← Bültene dön", onclick: showBulList }),
+        h("button", { class: "btn alt sm", style: "align-self:flex-start", text: detailFrom === "kupon" ? "← Kupona dön" : "← Bültene dön", onclick: backFromDetail }),
         h("h2", { text: it.home + " – " + it.away }),
         h("div", { class: "num hint", text: it.odds.map(function (x) { return nf(x, 2); }).join(" / ") + (it.ou ? " · 2,5 ü/a " + nf(it.ou[0], 2) + " / " + nf(it.ou[1], 2) : "") }),
         h("div", { class: "kpis" }, [kpi(nf(R.fit.lh, 2), "beklenen gol (ev)"), kpi(nf(R.fit.la, 2), "beklenen gol (dep)")])]);
