@@ -10,7 +10,9 @@ def pick(lo, hi):
     return next((m for m in W if lo <= len(m["odds"]) <= hi), None)
 
 
-picks = [m for m in (pick(39, 99), pick(20, 38), pick(11, 19), pick(3, 10)) if m]
+import os
+
+picks = list(W) if os.environ.get("ALL") else [m for m in (pick(39, 99), pick(20, 38), pick(11, 19), pick(3, 10)) if m]
 out = []
 for m in picks:
     r = analyze_bulletin_match(m["odds"])

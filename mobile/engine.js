@@ -79,6 +79,34 @@
     return res;
   }
 
+  /* Tüm arşiv için marjdan arındırılmış olasılıkları bir kez hesapla (rankSimilar ile aynı ifadeler) */
+  function probCache(D) {
+    if (D._pp) return D._pp;
+    var n = D.n, p1 = new Float64Array(n), px = new Float64Array(n), p2 = new Float64Array(n), po = new Float64Array(n).fill(-1), ok = new Uint8Array(n);
+    for (var i = 0; i < n; i++) {
+      if (!D.hasOdds(i)) continue;
+      var a = 100 / D.oh[i], b2 = 100 / D.od[i], c = 100 / D.oa[i], t = a + b2 + c; p1[i] = a / t; px[i] = b2 / t; p2[i] = c / t; ok[i] = 1;
+      if (D.oo[i] > 100 && D.ou[i] > 100) po[i] = (100 / D.oo[i]) / (100 / D.oo[i] + 100 / D.ou[i]);
+    }
+    return (D._pp = { p1: p1, px: px, p2: p2, po: po, ok: ok });
+  }
+  /* rankSimilar ile aynı sıralama (uzaklık artan, eşitte match_id azalan); yalnız ilk K'yı tutar. count: oranı olan maç sayısı. */
+  function rankTop(D, idx, q, tau, K) {
+    tau = tau || TAU; var pc = probCache(D), qp = devig(q.odds), qo = q.ou ? devig(q.ou)[0] : null, ws = W.p1 + W.px + W.p2;
+    var top = [], count = 0, worstD = Infinity, worstId = -1;
+    for (var k = 0; k < idx.length; k++) {
+      var i = idx[k]; if (!pc.ok[i]) continue; count++;
+      var s2 = W.p1 * Math.pow(pc.p1[i] - qp[0], 2) + W.px * Math.pow(pc.px[i] - qp[1], 2) + W.p2 * Math.pow(pc.p2[i] - qp[2], 2), w2 = ws;
+      if (qo !== null && pc.po[i] >= 0) { s2 += W.pover * Math.pow(pc.po[i] - qo, 2); w2 += W.pover; }
+      var d = Math.sqrt(s2 / w2), id = D.match_id[i];
+      if (top.length >= K && (d > worstD || (d === worstD && id < worstId))) continue;
+      var pos = top.length; while (pos > 0 && (top[pos - 1].dist > d || (top[pos - 1].dist === d && D.match_id[top[pos - 1].i] < id))) pos--;
+      top.splice(pos, 0, { i: i, dist: d, sim: 100 * Math.exp(-d / tau) });
+      if (top.length > K) top.pop();
+      if (top.length === K) { worstD = top[K - 1].dist; worstId = D.match_id[top[K - 1].i]; }
+    }
+    return { top: top, count: count };
+  }
   function b(x) { return x ? 1 : 0; }
   /* Pazar tanımları (Python MARKET_GROUPS ile aynı etiketler). fn(D,i) -> 1|0|null */
   function tot(D, i) { return D.fth[i] + D.fta[i]; }
@@ -128,10 +156,9 @@
 
   function analyze(D, q, sc, opt) {
     opt = opt || {};
-    var scoped = scopeIdx(D, sc), ranked = rankSimilar(D, scoped, q, opt.tau);
-    var minSim = opt.minSim || 0, topN = opt.topN || 50, minSample = opt.minSample || 30;
-    ranked = ranked.filter(function (r) { return r.sim >= minSim; });
-    var top = ranked.slice(0, topN), warnings = [];
+    var scoped = scopeIdx(D, sc), minSim = opt.minSim || 0, topN = opt.topN || 50, minSample = opt.minSample || 30, ranked, top, warnings = [];
+    if (!minSim) { var rt = rankTop(D, scoped, q, opt.tau, topN); top = rt.top; ranked = { length: rt.count }; }
+    else { ranked = rankSimilar(D, scoped, q, opt.tau).filter(function (r) { return r.sim >= minSim; }); top = ranked.slice(0, topN); }
     if (top.length < minSample) warnings.push("Örneklem küçük (" + top.length + " < " + minSample + "): yüzdeler güvenilir değil, aralıklar geniş.");
     if (scoped.length && ranked.length < scoped.length * 0.5) warnings.push("Kapsamdaki maçların yarısından fazlasında 1X2 oranı yok; bu maçlar dışarıda kaldı.");
     var minS = top.length ? top[top.length - 1].sim : null;
@@ -413,6 +440,12 @@
     starts.forEach(function (s0) { var r = nelderMead(loss, s0.map(Math.log), 800); if (!best || r.f < best.f) best = r; });
     return { lh: Math.exp(best.x[0]), la: Math.exp(best.x[1]), sse: best.f };
   }
+  /* Hedeflerden makul bir başlangıç noktası; uyum iyiyse tek başlangıç yeter, değilse diğer başlangıçlar da denenir. */
+  function fitSmart(targets, rho, vf, fallbackStarts, start0) {
+    var r = fitTargets(targets, rho, vf, [start0]);
+    if (Math.sqrt(r.sse / targets.length) > 0.012) { var r2 = fitTargets(targets, rho, vf, fallbackStarts); if (r2.sse < r.sse) r = r2; }
+    return r;
+  }
   function symR(a, b) { return a > b ? "1" : a < b ? "2" : "0"; }
   function htftMatrix(l1h, l1a, l2h, l2a) {
     var h1 = scoreMatrix(l1h, l1a, 0), h2 = scoreMatrix(l2h, l2a, 0), out = {}, tot = 0, a, b, c, d;
@@ -425,14 +458,16 @@
     return out;
   }
   function analyzeBulletinMatch(o) {
-    var targets = fullTargets(o), f = fitTargets(targets, RHO, mvalue, [[1.4, 1.1], [2.0, 0.8], [0.9, 1.6]]);
+    var targets = fullTargets(o), tmap = {}; targets.forEach(function (t) { tmap[t[0]] = t[1]; });
+    var T0 = tmap.over25 !== undefined ? 2.5 + (tmap.over25 - 0.5) * 2.4 : 2.6, sh = tmap.ms1 + 0.5 * tmap.ms0, l0 = Math.max(0.3, T0 * sh), a0 = Math.max(0.3, T0 - l0);
+    var f = fitSmart(targets, RHO, mvalue, [[1.4, 1.1], [2.0, 0.8], [0.9, 1.6]], [l0, a0]);
     var lh = f.lh, la = f.la, m = scoreMatrix(lh, la, RHO), mp = marketProbs(m);
     var res = { lh: lh, la: la, rmse: Math.sqrt(f.sse / targets.length), nTargets: targets.length, marketsUsed: targets.map(function (t) { return t[0]; }), matrix: m, top: topScores(m, 10) };
     var ht = [], q;
     if (o.ht1 && o.ht0 && o.ht2) { var hp0 = devig([o.ht1, o.ht0, o.ht2]); ht.push(["ht1", hp0[0]], ["ht0", hp0[1]], ["ht2", hp0[2]]); }
     if ((q = pairP(o, "ht15_ust", "ht15_alt"))) ht.push(["ht15", q[0]]);
     var hl, ha;
-    if (ht.length >= 3) { var hf = fitTargets(ht, 0, htvalue, [[0.6, 0.5], [0.9, 0.4], [0.4, 0.8]]); hl = hf.lh; ha = hf.la; res.htSource = "oranlardan (İY 1/0/2" + (ht.length === 4 ? " + 1,5 ü/a)" : ")"); }
+    if (ht.length >= 3) { var hf = fitSmart(ht, 0, htvalue, [[0.6, 0.5], [0.9, 0.4], [0.4, 0.8]], [lh * HT_SHARE, la * HT_SHARE]); hl = hf.lh; ha = hf.la; res.htSource = "oranlardan (İY 1/0/2" + (ht.length === 4 ? " + 1,5 ü/a)" : ")"); }
     else { hl = lh * HT_SHARE; ha = la * HT_SHARE; res.htSource = "yaklaşık (gol payı %" + nf1(HT_SHARE * 100) + "; İY oranı yok)"; }
     hl = Math.min(hl, lh * 0.95); ha = Math.min(ha, la * 0.95);
     var mh = scoreMatrix(hl, ha, 0), hp = marketProbs(mh);
