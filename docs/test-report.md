@@ -17,3 +17,5 @@ aktarım senkron çalışır (arka plan görevi/ilerleme çubuğu sonraki aşama
 Mobil: `node mobile/test_parity.mjs` JS motoru ile Python motorunun benzer-maç sıralaması, yüzdeleri ve piyasa-Poisson sonucunu karşılaştırır (hepsi OK). Canlı The Odds API çağrısı ve gerçek telefon denenmedi.
 
 Bülten listesi: her maçın model % (bülten oranlarından, kuponda kullanılan) ve arşiv % (oranları en benzer 50 maç) değerleri, maç detayındaki sayılarla aynı fonksiyonlardan gelir (tarayıcıda karşılaştırıldı: ör. MS1 %59/%72 liste = detay %58,6/özet %72). Arşiv yöntemi 400 rastgele geçmiş maçla (yalnız öncesi maçlar) sınandı: ortalama sapma ev +0,48, beraberlik −0,01, deplasman −0,47 puan.
+
+Düzen denetimi: `python mobile/check_layout.py mobile/dist/oran-arsivi.html` iPhone çentik payını (safe-area) emüle eder. Bir sınıf adı çakışması (`.top`) yüzünden telefonda "model favorisi" kutuları aşağı kayıp kartın `overflow: hidden` kuralıyla kesiliyordu (350 kutudan 150'si); masaüstü/headless tarayıcıda çentik payı 0 olduğu için görünmüyordu. Düzeltmeden sonra 0/350.
