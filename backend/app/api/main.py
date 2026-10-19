@@ -179,6 +179,8 @@ class SimilarRequest(BaseModel):
     opponent: str | None = None
     last_seasons: int | None = Field(None, ge=1, le=20)
     top_n: int = Field(50, ge=1, le=500)
+    max_dist: float | None = Field(None, gt=0, le=0.2)  # verilirse N sınırı yok: bu uzaklık içindeki tüm maçlar
+    min_n: int | None = Field(None, ge=1)
     min_similarity: float = Field(0, ge=0, le=100)
     min_sample: int = Field(30, ge=1)
 
@@ -216,7 +218,7 @@ def similar(req: SimilarRequest, session: Session = Depends(get_session)):
         raise HTTPException(409, "Arşiv boş: önce maç dosyalarını içe aktarın.")
     try:
         return analyze(df, SimQuery(req.odds_1x2, req.odds_ou25), sc, top_n=req.top_n,
-                       min_sim=req.min_similarity, min_sample=req.min_sample)
+                       min_sim=req.min_similarity, min_sample=req.min_sample, max_dist=req.max_dist, min_n=req.min_n)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
 

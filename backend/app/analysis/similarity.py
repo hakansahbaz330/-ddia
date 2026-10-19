@@ -145,12 +145,30 @@ def summarize(sub: pd.DataFrame) -> dict:
     return res
 
 
+def select_radius(ranked: pd.DataFrame, eps: float, min_n: int | None = None, max_eps: float = 0.06) -> tuple[pd.DataFrame, float]:
+    """Uzaklığı eps içindeki TÜM maçlar. min_n verilmişse, o kadar maç çıkana (veya max_eps'e) kadar aralık 1,25 katlanarak genişler."""
+    e = eps
+    n = int((ranked.dist <= e).sum())
+    while min_n and n < min_n and e < max_eps - 1e-12:
+        e = min(max_eps, e * 1.25)
+        n = int((ranked.dist <= e).sum())
+    return ranked[ranked.dist <= e], e
+
+
 def analyze(df_all: pd.DataFrame, q: Query, scope: Scope, top_n: int = 50, min_sim: float = 0.0,
-            min_sample: int = 30, weights: dict | None = None, tau: float = DEFAULT_TAU, list_limit: int = 100) -> dict:
+            min_sample: int = 30, weights: dict | None = None, tau: float = DEFAULT_TAU, list_limit: int = 100,
+            max_dist: float | None = None, min_n: int | None = None, max_eps: float = 0.06) -> dict:
+    """top_n: en benzer N maç. max_dist verilirse N sınırı yoktur: uzaklığı max_dist içindeki bütün maçlar analiz edilir
+    (min_n ile aralık gerekirse otomatik genişler)."""
     scoped = apply_scope(df_all, scope)
     ranked = rank_similar(scoped, q, weights, tau)
-    ranked = ranked[ranked.sim >= min_sim]
-    top = ranked.head(top_n)
+    radius = None
+    if max_dist is not None:
+        top, eff = select_radius(ranked, max_dist, min_n, max_eps)
+        radius = {"requested": max_dist, "effective": eff, "widened": eff > max_dist + 1e-12, "n": int(len(top))}
+    else:
+        ranked = ranked[ranked.sim >= min_sim]
+        top = ranked.head(top_n)
     warnings = []
     if len(top) < min_sample:
         warnings.append(f"Örneklem küçük ({len(top)} < {min_sample}); yüzdeler güvenilir değil, aralıklar geniş.")
@@ -159,9 +177,12 @@ def analyze(df_all: pd.DataFrame, q: Query, scope: Scope, top_n: int = 50, min_s
     if len(top) and top.sim.min() < 50:
         warnings.append(f"En düşük benzerlik {top.sim.min():.0f}/100; seçilen N için eşleşmeler yakın değil.")
     cols = ["match_id", "date", "league", "season", "home", "away", "fth", "fta", "hth", "hta", "oh", "od", "oa", "sim", "src_1x2"]
-    lst = top.head(list_limit)[cols].copy()
+    lst = top.sort_values(["dist", "match_id"], ascending=[True, False]).head(list_limit)[cols].copy()
     lst["date"] = lst["date"].dt.strftime("%Y-%m-%d")
+    if radius and radius["widened"]:
+        warnings.append(f"Benzerlik aralığı {radius['requested']:.3f} iken yalnızca az maç vardı; aralık otomatik {radius['effective']:.3f}'e genişletildi.")
     return {
+        "radius": radius,
         "scope_matches": int(len(scoped)), "with_odds": int(len(ranked)), "used": int(len(top)),
         "similarity": {"min": float(top.sim.min()) if len(top) else None, "mean": float(top.sim.mean()) if len(top) else None},
         "summary": summarize(top), "matches": lst.to_dict("records"), "warnings": warnings,

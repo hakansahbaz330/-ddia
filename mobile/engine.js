@@ -107,6 +107,25 @@
     }
     return { top: top, count: count };
   }
+  /* Yarıçap modu: uzaklığı eps içindeki TÜM maçlar (N sınırı yok). minN verilmişse aralık 1,25 katlanarak genişler (maxEps'e kadar).
+     Python: similarity.select_radius. Dönen: {eps, widened, count (oranı olan), within: [{i,dist}] , top: en yakın listK} */
+  function rankRadius(D, idx, q, tau, eps0, minN, maxEps, listK) {
+    tau = tau || TAU; maxEps = maxEps || 0.06; var pc = probCache(D), qp = devig(q.odds), qo = q.ou ? devig(q.ou)[0] : null, ws = W.p1 + W.px + W.p2;
+    var ids = [], ds = [], k;
+    for (k = 0; k < idx.length; k++) {
+      var i = idx[k]; if (!pc.ok[i]) continue;
+      var s2 = W.p1 * Math.pow(pc.p1[i] - qp[0], 2) + W.px * Math.pow(pc.px[i] - qp[1], 2) + W.p2 * Math.pow(pc.p2[i] - qp[2], 2), w2 = ws;
+      if (qo !== null && pc.po[i] >= 0) { s2 += W.pover * Math.pow(pc.po[i] - qo, 2); w2 += W.pover; }
+      ids.push(i); ds.push(Math.sqrt(s2 / w2));
+    }
+    function cnt(e) { var c = 0; for (var j = 0; j < ds.length; j++) if (ds[j] <= e) c++; return c; }
+    var eps = eps0, n = cnt(eps);
+    while (minN && n < minN && eps < maxEps - 1e-12) { eps = Math.min(maxEps, eps * 1.25); n = cnt(eps); }
+    var within = [];
+    for (var j2 = 0; j2 < ds.length; j2++) if (ds[j2] <= eps) within.push({ i: ids[j2], dist: ds[j2], sim: 100 * Math.exp(-ds[j2] / tau) });
+    within.sort(function (a, b) { return a.dist - b.dist || D.match_id[b.i] - D.match_id[a.i]; });
+    return { eps: eps, requested: eps0, widened: eps > eps0 + 1e-12, count: ids.length, within: within, top: within.slice(0, listK || 100) };
+  }
   function b(x) { return x ? 1 : 0; }
   /* Pazar tanımları (Python MARKET_GROUPS ile aynı etiketler). fn(D,i) -> 1|0|null */
   function tot(D, i) { return D.fth[i] + D.fta[i]; }
@@ -157,16 +176,24 @@
   function analyze(D, q, sc, opt) {
     opt = opt || {};
     var scoped = scopeIdx(D, sc), minSim = opt.minSim || 0, topN = opt.topN || 50, minSample = opt.minSample || 30, ranked, top, warnings = [];
-    if (!minSim) { var rt = rankTop(D, scoped, q, opt.tau, topN); top = rt.top; ranked = { length: rt.count }; }
+    var radius = null, allWithin = null;
+    if (opt.maxDist) {
+      var rr = rankRadius(D, scoped, q, opt.tau, opt.maxDist, opt.minN, opt.maxEps, opt.listK || 100);
+      top = rr.top; allWithin = rr.within; ranked = { length: rr.count };
+      radius = { requested: rr.requested, effective: rr.eps, widened: rr.widened, n: rr.within.length };
+    }
+    else if (!minSim) { var rt = rankTop(D, scoped, q, opt.tau, topN); top = rt.top; ranked = { length: rt.count }; }
     else { ranked = rankSimilar(D, scoped, q, opt.tau).filter(function (r) { return r.sim >= minSim; }); top = ranked.slice(0, topN); }
-    if (top.length < minSample) warnings.push("Örneklem küçük (" + top.length + " < " + minSample + "): yüzdeler güvenilir değil, aralıklar geniş.");
+    var used = allWithin || top;
+    if (used.length < minSample) warnings.push("Örneklem küçük (" + used.length + " < " + minSample + "): yüzdeler güvenilir değil, aralıklar geniş.");
     if (scoped.length && ranked.length < scoped.length * 0.5) warnings.push("Kapsamdaki maçların yarısından fazlasında 1X2 oranı yok; bu maçlar dışarıda kaldı.");
     var minS = top.length ? top[top.length - 1].sim : null;
-    if (minS !== null && minS < 50) warnings.push("En düşük benzerlik " + Math.round(minS) + "/100: seçilen N için eşleşmeler yakın değil.");
+    if (radius) { minS = allWithin.length ? allWithin[allWithin.length - 1].sim : null; }
+    if (!radius && minS !== null && minS < 50) warnings.push("En düşük benzerlik " + Math.round(minS) + "/100: seçilen N için eşleşmeler yakın değil.");
     return {
-      scope_matches: scoped.length, with_odds: ranked.length, used: top.length,
-      sim_mean: top.length ? top.reduce(function (a, r) { return a + r.sim; }, 0) / top.length : null, sim_min: minS,
-      summary: summarize(D, top.map(function (r) { return r.i; })), top: top, warnings: warnings
+      scope_matches: scoped.length, with_odds: ranked.length, used: used.length, radius: radius,
+      sim_mean: used.length ? used.reduce(function (a, r) { return a + r.sim; }, 0) / used.length : null, sim_min: minS,
+      summary: summarize(D, used.map(function (r) { return r.i; })), top: top, warnings: warnings
     };
   }
 
@@ -617,11 +644,11 @@
       res.form = { h: teamForm(D, hIdx, 10, "any"), hh: teamForm(D, hIdx, 10, "home"), a: teamForm(D, aIdx, 10, "any"), aa: teamForm(D, aIdx, 10, "away") };
       res.h2h = h2h(D, hIdx, aIdx, 10);
     }
-    var sim = analyze(D, q, { kind: "all" }, { topN: 50 }); res.similar = sim;
+    var sim = analyze(D, q, { kind: "all" }, { maxDist: 0.02, minN: 300 }); res.similar = sim;
     return res;
   }
 
   root.Engine = { decode: decode, devig: devig, wilson: wilson, scopeIdx: scopeIdx, rankSimilar: rankSimilar, summarize: summarize, analyze: analyze, dayToDate: dayToDate, MISS: MISS, fitFromMarket: fitFromMarket, scoreMatrix: scoreMatrix, marketProbs: marketProbs, topScores: topScores,
-    matchTeamIn: matchTeamIn, standings: standings, leagueContext: leagueContext, lastDate: lastDate, buildCoupons: buildCoupons, learnLeagueDivisions: learnLeagueDivisions, halfMarkets: halfMarkets, analyzeBulletinMatch: analyzeBulletinMatch, parseBulletin: parseBulletin, matchTeam: matchTeam, teamForm: teamForm, h2h: h2h, analyzeMatch: analyzeMatch, normName: normName };
+    rankRadius: rankRadius, matchTeamIn: matchTeamIn, standings: standings, leagueContext: leagueContext, lastDate: lastDate, buildCoupons: buildCoupons, learnLeagueDivisions: learnLeagueDivisions, halfMarkets: halfMarkets, analyzeBulletinMatch: analyzeBulletinMatch, parseBulletin: parseBulletin, matchTeam: matchTeam, teamForm: teamForm, h2h: h2h, analyzeMatch: analyzeMatch, normName: normName };
   if (typeof module !== "undefined") module.exports = root.Engine;
 })(typeof window !== "undefined" ? window : globalThis);

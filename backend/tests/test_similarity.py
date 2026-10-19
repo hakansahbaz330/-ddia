@@ -85,3 +85,19 @@ def test_no_future_leak_with_before_date():
     df = make_df(ROWS)
     r = analyze(df, Query((2.0, 3.4, 3.8)), Scope(before_date="2022-09-01"), top_n=10)
     assert r["used"] == 1 and r["matches"][0]["date"] == "2021-09-01"
+
+
+def test_radius_mode_uses_all_matches_within_distance_without_cap():
+    from app.analysis.similarity import analyze
+
+    rows = [("E0", "2021-2022", f"2021-09-{1 + i % 28:02d}", "A", f"T{i}", 2 if i % 3 == 0 else 1, 1, 1, 0, 2.0 + (i % 5) * 0.01, 3.4, 3.8, 1.9, 1.95) for i in range(200)]
+    df = make_df(rows + [("D1", "2022-2023", "2022-10-01", "D", "E", 3, 2, 1, 1, 1.4, 5.0, 9.0, 1.4, 3.0)])
+    r = analyze(df, Query((2.0, 3.4, 3.8), (1.9, 1.95)), Scope(), max_dist=0.01, list_limit=10)
+    assert r["radius"]["n"] == r["used"] == 200  # 50/100 sınırı yok; uzak maç (1.4/5/9) dışarıda
+    assert not r["radius"]["widened"] and len(r["matches"]) == 10
+    assert r["summary"]["markets"]["Maç sonucu"]["1"]["n"] == 200
+    # çok dar aralık + min_n: aralık otomatik genişler
+    tiny = analyze(df, Query((2.0, 3.4, 3.8), (1.9, 1.95)), Scope(), max_dist=1e-6, min_n=150)
+    assert tiny["radius"]["widened"] and tiny["used"] >= 150 and tiny["warnings"]
+    # N sınırlı mod hala çalışıyor
+    assert analyze(df, Query((2.0, 3.4, 3.8)), Scope(), top_n=50)["used"] == 50

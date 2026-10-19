@@ -219,7 +219,7 @@ p { margin: 0; }
         <label class="f" for="wkPct">Yüzdeler<select id="wkPct"><option value="both">Model + Arşiv</option><option value="model">Yalnız model</option><option value="arsiv">Yalnız arşiv</option><option value="off">Gizle</option></select></label>
       </div>
       <details class="legend"><summary>Kutular nasıl okunur?</summary>
-        <p class="hint">Her kutuda üstte seçim, ortada bülten oranı yer alır. <b class="lg-m">Yeşil %</b> model olasılığıdır: bülten oranlarından çıkarılır, otomatik kupon bunu kullanır. <b class="lg-a">Gri %</b> arşiv sıklığıdır: 70 bin maç içinde oranları bu maça en çok benzeyen 50 maçın gerçekleşme oranı. Arşiv yüzdesi 50 maça dayandığı için yaklaşık ±7 puan oynayabilir; 400 maçla yapılan sınamada ortalama sapma %0,5’in altındaydı. İkisi farklı yöntemdir; maça girince ikisi de ayrıntısıyla görünür. Kutuya dokunmak seçimi kupona ekler.</p></details>
+        <p class="hint">Her kutuda üstte seçim, ortada bülten oranı yer alır. <b class="lg-m">Yeşil %</b> model olasılığıdır: bülten oranlarından çıkarılır, otomatik kupon bunu kullanır. <b class="lg-a">Gri %</b> arşiv sıklığıdır: 70 bin maçın tamamı taranır, oranları bu maça ±2 puan içinde benzeyen tüm maçların (genelde birkaç yüz–birkaç bin) gerçekleşme oranıdır. 400 geçmiş maçla sınandı: ortalama hata yaklaşık 1,6 puan; favorilerde (%60+) arşiv sıklığı ima edilen olasılıktan ortalama 2 puan yüksek çıktı. İkisi farklı yöntemdir; maça girince ikisi de ayrıntısıyla görünür. Kutuya dokunmak seçimi kupona ekler.</p></details>
       <div id="wkList" class="wklist pcm-both"></div>
       <button class="btn alt sm" id="wkMore" hidden></button>
     </div>
@@ -257,11 +257,11 @@ p { margin: 0; }
     <datalist id="dlTeams"></datalist>
     <div><div class="hint" style="margin-bottom:4px">Dönem</div>
       <div class="seg" id="segSeason" role="group" aria-label="Dönem"><button aria-pressed="true" data-v="0">Tüm sezonlar</button><button aria-pressed="false" data-v="5">Son 5</button><button aria-pressed="false" data-v="3">Son 3</button></div></div>
-    <div><div class="hint" style="margin-bottom:4px">İncelenecek en benzer maç sayısı</div>
-      <div class="seg" id="segN" role="group" aria-label="Maç sayısı"><button aria-pressed="false" data-v="10">10</button><button aria-pressed="false" data-v="25">25</button><button aria-pressed="true" data-v="50">50</button><button aria-pressed="false" data-v="100">100</button></div></div>
+    <div><div class="hint" style="margin-bottom:4px">Benzerlik aralığı (oranların yakınlığı)</div>
+      <div class="seg" id="segN" role="group" aria-label="Benzerlik aralığı"><button aria-pressed="false" data-v="0.01">Çok yakın ±1</button><button aria-pressed="true" data-v="0.02">Yakın ±2</button><button aria-pressed="false" data-v="0.03">Geniş ±3</button></div>
+      <p class="hint" style="margin-top:4px">Arşivdeki tüm maçlar taranır; oranları bu aralığa giren <b>hepsi</b> analiz edilir (sayı sınırı yok). 300’den az maç çıkarsa aralık otomatik genişler.</p></div>
     <details><summary>Gelişmiş</summary>
       <div class="row" style="margin-top:8px">
-        <label class="f">Min. benzerlik (0–100)<input id="minSim" type="number" min="0" max="100" value="0" inputmode="numeric"></label>
         <label class="f">Min. örneklem<input id="minSample" type="number" min="1" value="30" inputmode="numeric"></label>
       </div>
       <p class="hint" style="margin-top:8px">“Son 3/5 sezon” arşivdeki son sezonları sayar; 2026-27 kısmi sezondur ve dahildir.</p>
@@ -317,7 +317,7 @@ p { margin: 0; }
     <p>Girdiğiniz oranlara geçmişte en çok benzeyen maçları bulur ve o maçlarda hangi sonuçların ne sıklıkta gerçekleştiğini gösterir. Tahmin motoru değildir; geçmiş sıklıktır, gelecekteki sonucun göstergesi olarak kesin sayılmamalıdır.</p></div>
   <div class="card"><h2>Veri</h2><dl class="kv" id="dataInfo"></dl></div>
   <div class="card"><h2>Yöntem</h2>
-    <p>Oranlar marjdan arındırılır (p<sub>i</sub> = (1/o<sub>i</sub>) / Σ(1/o<sub>j</sub>)). Benzerlik, 1X2 olasılıkları (ve girilmişse 2,5 üst olasılığı) arasındaki ağırlıklı öklid uzaklığıdır; puan = 100·exp(−uzaklık/0,05). Ağırlıklar başlangıç değerleridir, doğrulama testiyle ayarlanmamıştır. Yüzde aralıkları Wilson %95 güven aralığıdır.</p>
+    <p>Oranlar marjdan arındırılır (p<sub>i</sub> = (1/o<sub>i</sub>) / Σ(1/o<sub>j</sub>)). Benzerlik, 1X2 olasılıkları (ve varsa 2,5 üst olasılığı) arasındaki ağırlıklı öklid uzaklığıdır. Arşivdeki tüm maçlar taranır ve uzaklığı seçilen aralığın (varsayılan ±2 puan) içinde kalan HER maç analiz edilir; 300’den az maç çıkarsa aralık 1,25 katlanarak en çok ±6 puana kadar genişler. Ağırlıklar başlangıç değerleridir, doğrulama testiyle ayarlanmamıştır. Yüzde aralıkları Wilson %95 güven aralığıdır.</p>
     <p>Her maç için tek bir 1X2 oranı kullanılır: önce Pinnacle kapanış, yoksa piyasa ortalaması kapanış, sonra maç öncesi oranlar. Dosyalarda oran zaman damgası olmadığından “kapanış” yalnızca sütun adına dayanır.</p></div>
   <div class="card"><h2>Sınırlar</h2>
     <p>Bülten, haftalık iddaa bülten PDF’inden okunup uygulamaya gömülür; canlı oran bağlantısı yoktur. Yeni bülten geldiğinde uygulama yeniden üretilir. Oranlar bülten tarihindeki oranlardır. Yalnızca arşivdeki ligler gösterilir. Bet365, Nesine ve SofaScore’dan otomatik veri çekilmez. Korner ve kart istatistiği her maçta yok (örneklem sayısı gösterilir); kupon olasılığı, farklı maçlardaki seçimlerin bağımsız olduğunu varsayar.</p>
@@ -357,7 +357,7 @@ p { margin: 0; }
     get: function (k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* depolama kapalı olabilir */ } }
   };
-  var state = { scope: "all", venue: "any", season: 0, n: 50, aScope: "league", aSeason: 0, last: null };
+  var state = { scope: "all", venue: "any", season: 0, n: 0.02, aScope: "league", aSeason: 0, last: null };
 
   /* ---------- sekmeler ---------- */
   function go(name) {
@@ -504,7 +504,7 @@ p { margin: 0; }
       sim === undefined ? h("span") : h("div", { class: "sim", text: nf(sim, 0) + "/100" })
     ]);
   }
-  function renderMatches(root, rows, withSim) {
+  function renderMatches(root, rows, withSim, total) {
     var wrap = h("div", { class: "card" }), shown = Math.min(10, rows.length);
     var list = h("div", { class: "mlist" });
     function draw() {
@@ -520,7 +520,7 @@ p { margin: 0; }
       var done = function (ok) { copy.textContent = ok ? "Kopyalandı" : "Kopyalanamadı"; setTimeout(function () { copy.textContent = "Listeyi kopyala (CSV)"; }, 1800); };
       try { navigator.clipboard.writeText(csv).then(function () { done(true); }, function () { done(false); }); } catch (e) { done(false); }
     } });
-    wrap.appendChild(h("h2", { text: "Benzer maçlar" })); wrap.appendChild(list);
+    wrap.appendChild(h("h2", { text: total && total > rows.length ? "En yakın " + rows.length + " maç" : "Benzer maçlar" })); if (total && total > rows.length) wrap.appendChild(h("p", { class: "hint", text: "Toplam " + total.toLocaleString("tr-TR") + " benzer maçın en yakın " + rows.length + " tanesi listeleniyor; yüzdeler hepsine dayanır." })); wrap.appendChild(list);
     wrap.appendChild(h("div", { class: "row" }, [more, copy])); root.appendChild(wrap); draw();
   }
 
@@ -530,7 +530,7 @@ p { margin: 0; }
     var ti = teamIdx($("inTeam").value);
     if (ti >= 0) rows.push(["Takım: " + team(ti), { kind: "team", team: ti, venue: state.venue, lastSeasons: state.season || null }]);
     return rows.map(function (r) {
-      var res = E.analyze(D, q, r[1], { topN: state.n, minSim: +$("minSim").value || 0 }), m = res.summary.markets;
+      var res = E.analyze(D, q, r[1], { maxDist: state.n, minN: 300, listK: 100 }), m = res.summary.markets;
       return { name: r[0], res: res, m: m };
     });
   }
@@ -540,13 +540,14 @@ p { margin: 0; }
     var q, sc;
     try { q = readQuery(); sc = scopeFromUI(); } catch (e) { $("inErr").textContent = e.message; $("inErr").hidden = false; return; }
     var res;
-    try { res = E.analyze(D, q, sc, { topN: state.n, minSim: +$("minSim").value || 0, minSample: +$("minSample").value || 30 }); }
+    try { res = E.analyze(D, q, sc, { maxDist: state.n, minN: 300, listK: 100, minSample: +$("minSample").value || 30 }); }
     catch (e) { out.appendChild(h("div", { class: "warn", text: e.message })); return; }
     state.last = { q: q, res: res };
     out.style.cssText = "display:flex;flex-direction:column;gap:14px";
     var k = h("div", { class: "card" }, [h("h2", { text: "Sonuç" }), h("div", { class: "kpis" }, [
       kpi(res.used, "kullanılan benzer maç"), kpi(res.sim_mean === null ? "–" : nf(res.sim_mean, 0) + "/100", "ortalama benzerlik"),
       kpi(res.scope_matches.toLocaleString("tr-TR"), "kapsamdaki maç"), kpi(res.with_odds.toLocaleString("tr-TR"), "oranı olan maç")])]);
+    if (res.radius) k.appendChild(h("div", { class: "hint", text: "Kapsamdaki " + res.with_odds.toLocaleString("tr-TR") + " oranlı maçın tamamı tarandı; oranları ±" + nf(res.radius.effective * 100, 1) + " puan içinde olan " + res.used.toLocaleString("tr-TR") + " maç analiz edildi" + (res.radius.widened ? " (aralık otomatik genişledi)." : ".") }));
     res.warnings.forEach(function (w) { k.appendChild(h("div", { class: "warn", text: w })); });
     if (!res.used) { k.appendChild(h("div", { class: "warn", text: "Kriterlere uyan maç yok. Kapsamı genişletin veya min. benzerliği düşürün." })); out.appendChild(k); return; }
     out.appendChild(k);
@@ -563,7 +564,7 @@ p { margin: 0; }
     } else {
       out.appendChild(h("div", { class: "hint", text: "Kapsam karşılaştırması için Lig veya Takım seçip listeden bir değer belirleyin." }));
     }
-    renderMatches(out, res.top, true);
+    renderMatches(out, res.top, true, res.used);
   }
   function kpi(v, l) { return h("div", { class: "kpi" }, [h("b", { text: String(v) }), h("span", { text: l })]); }
   $("go").addEventListener("click", function () { var b = $("go"); b.disabled = true; setTimeout(function () { try { analyze(); } finally { b.disabled = false; } }, 20); });
@@ -757,7 +758,7 @@ p { margin: 0; }
   function ensureCalc(it) {
     if (!it._B) it._B = E.analyzeBulletinMatch(it.full);
     if (!it._S) {
-      var mm = E.analyze(D, { odds: it.odds, ou: it.ou }, { kind: "all" }, { topN: 50 }); it._S = { used: mm.used, m: mm.summary.markets };
+      var mm = E.analyze(D, { odds: it.odds, ou: it.ou }, { kind: "all" }, { maxDist: 0.02, minN: 300 }); it._S = { used: mm.used, m: mm.summary.markets, radius: mm.radius };
     }
   }
   function modelP(it, label) { var r = it._B.markets.filter(function (x) { return x.label === label; })[0]; return r ? r.model : null; }
@@ -1125,7 +1126,7 @@ p { margin: 0; }
 
       var sm = R.similar;
       if (sm.used) {
-        var sc = h("div", { class: "card" }, [h("h2", { text: "Benzer oranlı geçmiş maçlar" }), h("p", { class: "hint", text: "Tüm arşivde bu oranlara en çok benzeyen " + sm.used + " maçın gerçekleşme sıklığı (ortalama benzerlik " + nf(sm.sim_mean, 0) + "/100)." })]);
+        var sc = h("div", { class: "card" }, [h("h2", { text: "Benzer oranlı geçmiş maçlar" }), h("p", { class: "hint", text: "Arşivdeki " + sm.with_odds.toLocaleString("tr-TR") + " oranlı maçın tamamı tarandı; oranları bu maça ±" + nf(sm.radius.effective * 100, 1) + " puan içinde benzeyen " + sm.used.toLocaleString("tr-TR") + " maçın gerçekleşme sıklığı" + (sm.radius.widened ? " (aralık otomatik genişledi)" : "") + "." })]);
         var mm = sm.summary.markets, pr2 = h("div", { class: "pair" });
         ["1", "X", "2"].forEach(function (k2) { pr2.appendChild(cell("MS " + k2, mm["Maç sonucu"][k2])); });
         pr2.appendChild(cell("2,5 üst", mm["Gol üst (maç)"]["2.5 üst"])); pr2.appendChild(cell("2,5 alt", mm["Gol üst (maç)"]["2.5 alt"]));

@@ -20,6 +20,9 @@ cases = [
     dict(name="tum_arsiv_1x2", q=dict(odds=[2.0, 3.4, 3.8], ou=None), sc=dict(kind="all"), n=50),
     dict(name="tum_arsiv_ou", q=dict(odds=[1.5, 4.2, 6.5], ou=[1.7, 2.1]), sc=dict(kind="all"), n=100),
     dict(name="lig_E0", q=dict(odds=[2.6, 3.3, 2.7], ou=[1.9, 1.95]), sc=dict(kind="league", div=["E0"]), n=25),
+    dict(name="yaricap_tum", q=dict(odds=[2.45, 3.4, 2.8], ou=[1.8, 2.0]), sc=dict(kind="all"), n=50, radius=0.02, min_n=300),
+    dict(name="yaricap_seyrek", q=dict(odds=[1.15, 7.0, 15.0], ou=[1.45, 2.8]), sc=dict(kind="all"), n=50, radius=0.01, min_n=300),
+    dict(name="yaricap_lig", q=dict(odds=[2.6, 3.3, 2.7], ou=[1.9, 1.95]), sc=dict(kind="league", div=["E0"]), n=50, radius=0.02, min_n=300),
     dict(name="takim_son5", q=dict(odds=[1.8, 3.6, 4.5], ou=None), sc=dict(kind="team", team="Galatasaray", venue="home", lastSeasons=5), n=10),
 ]
 ref = []
@@ -27,11 +30,12 @@ for c in cases:
     sc = c["sc"]
     py = Scope(kind=sc["kind"], divisions=sc.get("div", []), team=sc.get("team"), venue=sc.get("venue", "any"),
                last_seasons=sc.get("lastSeasons"))
-    r = analyze(df, Query(tuple(c["q"]["odds"]), tuple(c["q"]["ou"]) if c["q"]["ou"] else None), py, top_n=c["n"], list_limit=c["n"])
+    r = analyze(df, Query(tuple(c["q"]["odds"]), tuple(c["q"]["ou"]) if c["q"]["ou"] else None), py, top_n=c["n"], list_limit=c["n"],
+                max_dist=c.get("radius"), min_n=c.get("min_n"))
     js_sc = dict(sc)
     if sc.get("team"):
         js_sc["team"] = teams[sc["team"]]
-    ref.append(dict(name=c["name"], q=c["q"], sc=js_sc, n=c["n"], used=r["used"], scope_matches=r["scope_matches"],
+    ref.append(dict(name=c["name"], q=c["q"], sc=js_sc, n=c["n"], radius=c.get("radius"), min_n=c.get("min_n"), eff=(r["radius"] or {}).get("effective"), used=r["used"], scope_matches=r["scope_matches"],
                     ids=[m["match_id"] for m in r["matches"]], markets=r["summary"]["markets"],
                     htft=r["summary"]["htft"], sim_mean=r["similarity"]["mean"]))
 (out / "ref.json").write_text(json.dumps(ref))
