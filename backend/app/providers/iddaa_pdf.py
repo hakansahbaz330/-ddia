@@ -61,13 +61,15 @@ def parse_pdf(path, year: int | None = None) -> dict:
                     heads.append((top, d))
                     days_seen.append(str(d))
             heads.sort()
-            anchors = sorted(((w["top"] + w["bottom"]) / 2, w["text"]) for w in words if w["x0"] < 12.5 and len(w["text"]) == 1 and w["text"].isalpha() and w["top"] > 335)
+            # veri satırları sütun başlık satırından ("SAHİBİ") sonra başlar; sayfa 1'de ~73, sonraki sayfalarda da üstte (sabit 335 eşiği maçları kaçırıyordu)
+            body_top = min((w["top"] for w in words if w["text"] == "SAHİBİ"), default=335) - 1
+            anchors = sorted(((w["top"] + w["bottom"]) / 2, w["text"]) for w in words if w["x0"] < 12.5 and len(w["text"]) == 1 and w["text"].isalpha() and w["top"] > body_top)
             if not anchors:
                 continue
             ys = [a[0] for a in anchors]
             buckets: list[list] = [[] for _ in anchors]
             for w in words:
-                if w["top"] <= 335 or w["x0"] < 12.5:
+                if w["top"] <= body_top or w["x0"] < 12.5:
                     continue
                 cy = (w["top"] + w["bottom"]) / 2
                 k = min(range(len(ys)), key=lambda i: abs(ys[i] - cy))
@@ -94,6 +96,14 @@ def parse_pdf(path, year: int | None = None) -> dict:
                         j = min(range(len(centers)), key=lambda i: abs(centers[i] - cx))
                         if abs(centers[j] - cx) <= 7:
                             odds[COLUMN_KEYS[j]] = float(w["text"].replace(",", "."))
+                est: list[str] = []
+                miss = [k for k in ("ms1", "ms0", "ms2") if k not in odds]
+                if len(miss) == 1:
+                    # Kapanmış (“-”) tek MS oranı: ağır favori. Toplam marj ≈ %7 varsayımıyla kestirilir ve “est” ile işaretlenir.
+                    inv = 1.07 - sum(1 / odds[k] for k in ("ms1", "ms0", "ms2") if k in odds)
+                    if inv > 0.3:
+                        odds[miss[0]] = round(1 / inv, 2)
+                        est = miss
                 if not all(k in odds for k in ("ms1", "ms0", "ms2")):
                     skipped += 1  # 1X2 yok: analiz edilemez (ör. sadece özel pazar)
                     skipped_rows.append({"league": league, "home": home, "away": away, "time": time_, "reason": "1X2 oranı yok"})
@@ -105,7 +115,7 @@ def parse_pdf(path, year: int | None = None) -> dict:
                 if day is None and heads:
                     day = heads[0][1]
                 matches.append({"date": str(day) if day else None, "time": time_, "league": league, "home": home, "away": away,
-                                "odds": odds})
+                                "odds": odds, **({"est": est} if est else {})})
     return {"matches": matches, "skipped_rows": skipped, "skipped_detail": skipped_rows[:100], "days": sorted(set(days_seen))}
 
 
