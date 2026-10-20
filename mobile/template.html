@@ -1024,7 +1024,21 @@ p { margin: 0; }
     if (ligs.length) o.perLeague = Math.max(o.perLeague, Math.ceil(o.legs / ligs.length)); /* seçili liglerde lig başına sınır kuponu kısıtlamasın */
     if (nMatch < o.legs) { out.appendChild(h("div", { class: "warn", text: "Seçili gün ve liglerde yalnızca " + nMatch + " maç var; " + o.legs + " maçlık kupon için maç sayısını azaltın veya filtreyi genişletin." })); return; }
     var r = E.buildCoupons(cands, o);
-    out.appendChild(h("div", { class: "hint", text: r.matchesInPool + " maçta " + r.poolSize + " aday seçim süzüldü." }));
+    out.appendChild(h("div", { class: "hint", text: r.matchesInPool + " / " + nMatch + " maçta " + r.poolSize + " aday seçim süzüldü." }));
+    /* hangi maç neden havuza girmedi: seçili pazarlarda olasılık aralığına uyan seçim yoksa en yakınını göster */
+    if (r.matchesInPool < nMatch) {
+      var lines = [], mk = {};
+      cands.forEach(function (c) { (mk[c.mi] = mk[c.mi] || []).push(c); });
+      Object.keys(mk).forEach(function (mi) {
+        var all = mk[mi].filter(function (c) { return o.groups.indexOf(c.group) > -1 && c.odds >= 1.01; });
+        if (all.some(function (c) { return c.p >= o.minP && c.p <= o.maxP; })) return;
+        var best = all.slice().sort(function (a, b) { return Math.abs(a.p - (o.minP + o.maxP) / 2) - Math.abs(b.p - (o.minP + o.maxP) / 2); })[0];
+        lines.push(mk[mi][0].match + (best ? ": en yakın " + best.label + " %" + Math.round(best.p * 100) + (best.p > o.maxP ? " (aralığın üstünde)" : " (aralığın altında)") : ": seçili pazarlarda oran yok"));
+      });
+      var det = h("details", { class: "hint" }, [h("summary", { text: (nMatch - r.matchesInPool) + " maç, seçili pazar ve olasılık aralığına uyan seçim olmadığı için dışarıda" })]);
+      lines.forEach(function (t) { det.appendChild(h("div", { text: t })); });
+      out.appendChild(det);
+    }
     if (r.coupons.length && r.coupons.length < o.count) out.appendChild(h("div", { class: "warn", text: o.count + " kupon istendi; yinelenen seçim olmadan koşullara uyan " + r.coupons.length + " kupon bulundu." }));
     if (!r.coupons.length) {
       out.appendChild(h("div", { class: "warn", text: "Bu koşullara uyan kupon bulunamadı. Zayıf seçimlerle doldurmadım. Oran aralığını genişletin, minimum olasılığı düşürün veya maç sayısını/pazarları değiştirin." })); return;
