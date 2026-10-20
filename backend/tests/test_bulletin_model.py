@@ -69,7 +69,7 @@ def test_real_pdf_parses_with_consistent_margins():
     r = parse_pdf(PDF, 2026)
     assert len(r["matches"]) > 800 and r["days"] == ["2026-10-16", "2026-10-17", "2026-10-18", "2026-10-19"]
     assert all(m["time"] for m in r["matches"]) and all(m["date"] for m in r["matches"])
-    margins = [sum(1 / m["odds"][k] for k in ("ms1", "ms0", "ms2")) for m in r["matches"] if not m.get("est")]  # kestirilen oranlar hariç
+    margins = [sum(1 / m["odds"][k] for k in ("ms1", "ms0", "ms2")) for m in r["matches"]]
     assert 1.10 < min(margins) and max(margins) < 1.25  # sütun kayması olsaydı marj bozulurdu
     kg = [sum(1 / m["odds"][k] for k in ("kg_var", "kg_yok")) for m in r["matches"] if "kg_var" in m["odds"] and "kg_yok" in m["odds"]]
     assert kg and 1.10 < min(kg) and max(kg) < 1.25

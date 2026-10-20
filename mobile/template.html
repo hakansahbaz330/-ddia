@@ -689,7 +689,7 @@ p { margin: 0; }
     wkItems = WKPDF.matches.map(function (m, i) {
       var o = m.odds, p = E.devig([o.ms1, o.ms0, o.ms2]), fav = Math.max(p[0], p[1], p[2]);
       return { mi: i, home: m.home, away: m.away, odds: [o.ms1, o.ms0, o.ms2], ou: o.ou25_ust && o.ou25_alt ? [o.ou25_ust, o.ou25_alt] : null, full: o, date: m.date, time: m.time, league: m.division || m.league, code: m.league,
-        division: m.division, est: m.est || [], fav: fav, over: o.ou25_ust && o.ou25_alt ? E.devig([o.ou25_ust, o.ou25_alt])[0] : null, hIdx: undefined, aIdx: undefined };
+        division: m.division, fav: fav, over: o.ou25_ust && o.ou25_alt ? E.devig([o.ou25_ust, o.ou25_alt])[0] : null, hIdx: undefined, aIdx: undefined };
     });
     var days = Array.from(new Set(wkItems.map(function (x) { return x.date; }))).sort();
     $("wkCard").hidden = false;
@@ -816,7 +816,7 @@ p { margin: 0; }
         if (!o) { grid.appendChild(h("span")); return; }
         var pm = h("i", { class: "pm wait", text: "·" }), pa = h("i", { class: "pa wait", text: "·" });
         var btn = h("button", { class: "mc-cell", "aria-pressed": hasLeg(x, c[2]) ? "true" : "false", "aria-label": c[2] + " " + nf(o, 2) + " kupona ekle", onclick: function () { toggleLeg(x, c); } },
-          [h("small", { class: "lb", text: c[0] }), h("b", { class: "od", text: (x.est.indexOf(c[1]) > -1 ? "~" : "") + nf(o, 2) }), pm, pa]);
+          [h("small", { class: "lb", text: c[0] }), h("b", { class: "od", text: nf(o, 2) }), pm, pa]);
         x._cells[c[2]] = { btn: btn, pm: pm, pa: pa }; grid.appendChild(btn);
       });
       var di = divInfo(x.division);
