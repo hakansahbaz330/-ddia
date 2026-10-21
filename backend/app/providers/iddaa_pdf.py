@@ -7,7 +7,7 @@ Her maç 1-2 metin satırına yayılabildiği için kelimeler dikey olarak en ya
 from __future__ import annotations
 
 import re
-from datetime import date
+from datetime import date, timedelta
 
 MONTHS = {"OCAK": 1, "ŞUBAT": 2, "MART": 3, "NİSAN": 4, "MAYIS": 5, "HAZİRAN": 6, "TEMMUZ": 7, "AĞUSTOS": 8,
           "EYLÜL": 9, "EKİM": 10, "KASIM": 11, "ARALIK": 12}
@@ -42,7 +42,8 @@ def parse_pdf(path, year: int | None = None) -> dict:
     skipped_rows: list[dict] = []
     with pdfplumber.open(path) as pdf:
         centers: list[float] = []
-        for pg in pdf.pages:
+        cur_day, last_time, last_head = None, "", None  # gün: başlıktan; başlık yoksa saat geriye sarınca bir sonraki gün
+        for pg_no, pg in enumerate(pdf.pages):
             words = pg.extract_words()
             hc = _header_centers(words)
             if len(hc) == len(COLUMN_KEYS):
@@ -76,10 +77,20 @@ def parse_pdf(path, year: int | None = None) -> dict:
                 if abs(ys[k] - cy) <= 5.2:
                     buckets[k].append(w)
             for (ay, sport), ws in zip(anchors, buckets, strict=True):
+                head = None
+                for top, d in heads:
+                    if top <= ay + 1:
+                        head = (pg_no, top, d)
+                time_ = next((w["text"][:5] for w in ws if _TIME.match(w["text"]) and 28 <= w["x0"] < 40), "")
+                if head and head != last_head:
+                    cur_day, last_time, last_head = head[2], "", head
+                elif time_ and last_time and time_ < last_time and cur_day:
+                    cur_day = cur_day + timedelta(days=1)  # başlıksız gün geçişi: saatler gün içinde artan sıradadır
+                if time_:
+                    last_time = time_
                 if sport != "F":
                     continue
                 league = " ".join(w["text"] for w in sorted(ws, key=lambda w: w["x0"]) if 13 <= w["x0"] < 28.5)
-                time_ = next((w["text"][:5] for w in ws if _TIME.match(w["text"]) and 28 <= w["x0"] < 40), "")
                 names = sorted((w for w in ws if 62 <= w["x0"] < 160 and not _DEC.match(w["text"]) and w["text"] != "-"), key=lambda w: w["x0"])
                 if len(names) < 2:
                     skipped += 1
@@ -100,12 +111,7 @@ def parse_pdf(path, year: int | None = None) -> dict:
                     skipped += 1  # 1X2 yok: analiz edilemez (ör. sadece özel pazar)
                     skipped_rows.append({"league": league, "home": home, "away": away, "time": time_, "reason": "1X2 oranı yok"})
                     continue
-                day = None
-                for top, d in heads:
-                    if top <= ay + 1:
-                        day = d
-                if day is None and heads:
-                    day = heads[0][1]
+                day = cur_day
                 matches.append({"date": str(day) if day else None, "time": time_, "league": league, "home": home, "away": away,
                                 "odds": odds})
     return {"matches": matches, "skipped_rows": skipped, "skipped_detail": skipped_rows[:100], "days": sorted(set(days_seen))}
