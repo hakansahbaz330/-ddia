@@ -12,13 +12,13 @@ IDDAA_TO_ARCHIVE = {
     "İNP": "E0", "İNCH": "E1", "İN1": "E2", "İN2": "E3",
     "İSKOP": "SC0", "İSKCH": "SC1", "İSKO1": "SC2", "İSKO2": "SC3",
     "ALBU": "D1", "AL2B": "D2", "İSPL1": "SP1", "İSPL2": "SP2", "İTSA": "I1", "İTSB": "I2",
+    "İNUL": "EC", "BELÇ": "B1", "PORP": "P1",
     "FR1": "F1", "FR2": "F2", "HOLL": "N1", "SÜPL": "T1", "YUN": "G1",
     # UEFA kupaları (arşivde bölünme yok; oran tabanlı analiz): ŞMPL=Şampiyonlar Ligi, AVRL=Avrupa Ligi, AVKL=Konferans Ligi
     # (20-21 Ekim 2026 bülteninde takımlardan doğrulandı).
     "ŞMPL": "UCL", "AVRL": "UEL", "AVKL": "UECL",
     # İFAK = FA Kupası (Atherton Collieries gibi alt lig takımları var; arşivdeki National League değil) -> bilinçli olarak yok.
-    # EC (National League) bu bültende lig olarak görülmedi.
-    # Arşivde olan ama bu bültende görülmeyen ligler için olası kodlar (doğrulanmadı, bu yüzden boş bırakıldı): B1 Belçika, P1 Portekiz.
+    # İNUL=National League (Gateshead/Tamworth/Eastleigh arşivde EC), BELÇ=Pro League (B1), PORP=Primeira Liga (P1): 23-26 Ekim bülteninde takımlardan doğrulandı.
 }
 ARCHIVE_DIVISIONS = {
     "E0": "Premier League", "E1": "Championship", "E2": "League One", "E3": "League Two", "EC": "National League",
